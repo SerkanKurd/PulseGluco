@@ -1,11 +1,22 @@
+import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { RootNavigator } from './src/presentation/navigation/RootNavigator';
+import { useHealthStore } from './src/presentation/state/useHealthStore';
+import { useTheme } from './src/core/theme/useTheme';
 
 export default function App() {
+  const initializeStore = useHealthStore((state) => state.initializeStore);
+  const { colors, isDark } = useTheme();
+
+  useEffect(() => {
+    initializeStore();
+  }, []);
+
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <RootNavigator />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
     </View>
   );
 }
@@ -13,8 +24,5 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

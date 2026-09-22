@@ -7,9 +7,20 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.pulsegluco.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "PulseGluco requires camera access to scan your blood pressure monitor and glucometer screens.",
+        "NSPhotoLibraryUsageDescription": "PulseGluco requires photo library access to import images of your health measurement devices."
+      }
     },
     "android": {
+      "package": "com.pulsegluco.app",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -20,6 +31,22 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-sharing",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "PulseGluco requires camera access to scan your blood pressure monitor and glucometer screens."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "PulseGluco requires photo library access to import images of your health measurement devices."
+        }
+      ]
+    ]
   }
 }
