@@ -1,6 +1,6 @@
 import { StatusCategory } from '../../core/constants/medical-thresholds';
 
-export type DeviceType = 'BLOOD_PRESSURE' | 'BLOOD_GLUCOSE';
+export type DeviceType = 'BLOOD_PRESSURE' | 'BLOOD_GLUCOSE' | 'PULSE';
 
 export type GlucoseUnit = 'mg/dL' | 'mmol/L';
 
@@ -34,7 +34,14 @@ export interface BloodGlucoseRecord extends BaseRecord {
   status: StatusCategory;
 }
 
-export type HealthRecord = BloodPressureRecord | BloodGlucoseRecord;
+export interface PulseRecord extends BaseRecord {
+  deviceType: 'PULSE';
+  pulse: number; // bpm
+  spo2?: number; // % (if available from pulse oximeter)
+  status: StatusCategory;
+}
+
+export type HealthRecord = BloodPressureRecord | BloodGlucoseRecord | PulseRecord;
 
 export function isBloodPressureRecord(record: HealthRecord): record is BloodPressureRecord {
   return record.deviceType === 'BLOOD_PRESSURE';
@@ -42,4 +49,8 @@ export function isBloodPressureRecord(record: HealthRecord): record is BloodPres
 
 export function isBloodGlucoseRecord(record: HealthRecord): record is BloodGlucoseRecord {
   return record.deviceType === 'BLOOD_GLUCOSE';
+}
+
+export function isPulseRecord(record: HealthRecord): record is PulseRecord {
+  return record.deviceType === 'PULSE';
 }

@@ -20,60 +20,113 @@ export class BloodGlucoseParser {
     const unit = this.detectUnit(rawText);
     const mealTag = this.detectMealTag(rawText);
 
-    // Look for decimal number first if mmol/L is suspected or dot is present
+    // Filter out common noise patterns (time HH:MM, date DD/MM/YYYY, memory tags)
+    // to avoid confusing clock minutes or dates with glucose readings.
+    const cleanLines = lines.map((line) => {
+      return line
+        // Remove times like 10:45, 12:30:15
+        .replace(/\b\d{1,2}:\d{2}(?::\d{2})?\b(?:\s*[ap]m)?/gi, ' ')
+        // Remove dates like 24/09/2026, 24.09.26, 2026-09-24
+        .replace(/\b\d{1,4}[./\-]\d{1,2}[./\-]\d{1,4}\b/g, ' ')
+        // Remove memory or code prefixes like MEM 02, CODE 25, AVG 7
+        .replace(/\b(?:MEM|MEMORY|CODE|AVG|DAY|M|C)\s*\d+\b/gi, ' ')
+        .trim();
+    }).filter(Boolean);
+
     let glucoseValue: number | null = null;
 
     // Pattern 1: Decimal numbers like 5.4, 6.8, 11.2 (for mmol/L)
-    const decimalMatch = rawText.match(/\b(\d{1,2})[.,](\d)\b/);
-    if (decimalMatch) {
-      const val = parseFloat(`${decimalMatch[1]}.${decimalMatch[2]}`);
-      if (val >= 1.1 && val <= 33.3) {
-        glucoseValue = val;
-        matchedLines.push(decimalMatch[0]);
-        const finalUnit: GlucoseUnit = 'mmol/L';
-        return {
-          deviceType: 'BLOOD_GLUCOSE',
-          glucoseValue: val,
-          unit: finalUnit,
-          mealTag,
-          confidence: unit === 'mmol/L' ? 0.94 : 0.88,
-          status: classifyBloodGlucose(val, finalUnit, mealTag),
-          rawMatchedLines: matchedLines,
-        };
+    // Only consider decimal if it is in physiological range for mmol/L (1.1 - 33.3)
+    const isMmol = unit === 'mmol/L';
+    const decimalMatches: { val: number; line: string; score: number }[] = [];
+
+    for (const line of cleanLines) {
+      const sanitized = sanitizeSevenSegmentText(line);
+      const decMatch = sanitized.match(/\b(\d{1,2})[.,](\d)\b/);
+      if (decMatch) {
+        const val = parseFloat(`${decMatch[1]}.${decMatch[2]}`);
+        if (val >= 1.5 && val <= 33.0) {
+          let score = 10;
+          if (isMmol) score += 50;
+          if (/mmol|mol/i.test(line)) score += 30;
+          decimalMatches.push({ val, line, score });
+        }
       }
     }
 
-    // Pattern 2: Integer numbers (mg/dL) e.g. 95, 115, 140, 210
-    // Check line by line for prominent numbers
-    for (const line of lines) {
+    if (decimalMatches.length > 0 && (isMmol || decimalMatches[0].score >= 40)) {
+      decimalMatches.sort((a, b) => b.score - a.score);
+      const best = decimalMatches[0];
+      glucoseValue = best.val;
+      matchedLines.push(best.line);
+      const finalUnit: GlucoseUnit = 'mmol/L';
+      return {
+        deviceType: 'BLOOD_GLUCOSE',
+        glucoseValue,
+        unit: finalUnit,
+        mealTag,
+        confidence: isMmol ? 0.95 : 0.88,
+        status: classifyBloodGlucose(glucoseValue, finalUnit, mealTag),
+        rawMatchedLines: matchedLines,
+      };
+    }
+
+    // Pattern 2: Integer numbers (mg/dL) e.g. 70 to 450
+    // Score each candidate based on prominence, line isolation, and proximity to glucose keywords
+    const candidates: { num: number; line: string; score: number }[] = [];
+
+    cleanLines.forEach((line, idx) => {
       const sanitized = sanitizeSevenSegmentText(line);
+      // Find all 2-3 digit numbers
       const matches = sanitized.match(/\b\d{2,3}\b/g);
       if (matches) {
         for (const m of matches) {
           const num = parseInt(m, 10);
-          // Common glucose range in mg/dL: 30 to 500
-          if (num >= 30 && num <= 500) {
-            glucoseValue = num;
-            matchedLines.push(line);
-            break;
+          if (num >= 35 && num <= 500) {
+            let score = 0;
+            // High score if line contains glucose keywords or units
+            if (/mg[\/.]?d[l1i]|mgdl|seker|şeker|glukoz|glikoz|sugar/i.test(line)) {
+              score += 60;
+            }
+            // Check adjacent lines for units or labels
+            if (idx > 0 && /mg[\/.]?d[l1i]|mgdl|seker|şeker|glukoz|glikoz|sugar/i.test(cleanLines[idx - 1])) {
+              score += 40;
+            }
+            if (idx + 1 < cleanLines.length && /mg[\/.]?d[l1i]|mgdl|seker|şeker|glukoz|glikoz|sugar/i.test(cleanLines[idx + 1])) {
+              score += 40;
+            }
+            // Isolated numbers (e.g. line is just "105" or "105 mg/dL")
+            if (/^\s*\d{2,3}\s*$/.test(line)) {
+              score += 35;
+            } else if (/^\s*(?:mg\/dl\s*)?\d{2,3}(?:\s*mg\/dl)?\s*$/i.test(line)) {
+              score += 50;
+            }
+            // Plausible fasting / postprandial glucose range (70 - 250) gets higher likelihood
+            if (num >= 65 && num <= 260) {
+              score += 20;
+            }
+
+            candidates.push({ num, line, score });
           }
         }
       }
-      if (glucoseValue !== null) break;
+    });
+
+    if (candidates.length > 0) {
+      // Sort descending by score
+      candidates.sort((a, b) => b.score - a.score);
+      const topCandidate = candidates[0];
+      glucoseValue = topCandidate.num;
+      matchedLines.push(topCandidate.line);
     }
 
     if (glucoseValue !== null) {
       const finalUnit: GlucoseUnit = unit;
-      let confidence = 0.85;
+      let confidence = 0.86;
       if (
-        rawText.toLowerCase().includes('mg/dl') ||
-        rawText.toLowerCase().includes('mgdl') ||
-        rawText.toLowerCase().includes('seker') ||
-        rawText.toLowerCase().includes('şeker') ||
-        rawText.toLowerCase().includes('glukoz') ||
-        rawText.toLowerCase().includes('glikoz')
+        /mg[\/.]?d[l1i]|mgdl|seker|şeker|glukoz|glikoz|sugar/i.test(rawText)
       ) {
-        confidence += 0.1;
+        confidence += 0.08;
       }
       if (mealTag !== 'RANDOM') {
         confidence += 0.04;
@@ -98,7 +151,7 @@ export class BloodGlucoseParser {
    */
   public detectUnit(text: string): GlucoseUnit {
     const lower = text.toLowerCase();
-    if (lower.includes('mmol') || lower.includes('mmol/l')) {
+    if (lower.includes('mmol') || lower.includes('mmol/l') || lower.includes('mmo1')) {
       return 'mmol/L';
     }
     // Default worldwide standard often mg/dL unless mmol detected

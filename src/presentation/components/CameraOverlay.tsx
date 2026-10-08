@@ -13,11 +13,12 @@ interface CameraOverlayProps {
   onPickImage: () => void;
   onClose: () => void;
   isProcessing: boolean;
+  onOpenSettings?: () => void;
 }
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const VIEWFINDER_WIDTH = SCREEN_WIDTH * 0.85;
-const VIEWFINDER_HEIGHT = SCREEN_WIDTH * 0.70; // 4:3 LCD screen ratio
+const VIEWFINDER_WIDTH = SCREEN_WIDTH * 0.88;
+const VIEWFINDER_HEIGHT = SCREEN_WIDTH * 0.78; // Generous aspect ratio to encompass entire LCD
 
 export const CameraOverlay: React.FC<CameraOverlayProps> = ({
   deviceMode,
@@ -28,12 +29,13 @@ export const CameraOverlay: React.FC<CameraOverlayProps> = ({
   onPickImage,
   onClose,
   isProcessing,
+  onOpenSettings,
 }) => {
   const { t } = useTranslation();
 
   return (
     <View style={styles.container} pointerEvents="box-none">
-      {/* Top Bar with Mode Selector and Flash */}
+      {/* Top Bar with Mode Selector, Flash & Settings */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.iconButton} onPress={onClose}>
           <Text style={styles.iconText}>✕</Text>
@@ -65,14 +67,29 @@ export const CameraOverlay: React.FC<CameraOverlayProps> = ({
               {t.camera.modeGlucose}
             </Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.modeButton, deviceMode === 'PULSE' && styles.modeButtonActive]}
+            onPress={() => onSelectMode('PULSE')}
+          >
+            <Text style={[styles.modeText, deviceMode === 'PULSE' && styles.modeTextActive]}>
+              {t.camera.modePulse}
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        <TouchableOpacity
-          style={[styles.iconButton, torchOn && styles.iconButtonActive]}
-          onPress={onToggleTorch}
-        >
-          <Text style={styles.iconText}>{torchOn ? '⚡' : '💡'}</Text>
-        </TouchableOpacity>
+        <View style={styles.topActionGroup}>
+          {onOpenSettings && (
+            <TouchableOpacity style={styles.iconButton} onPress={onOpenSettings}>
+              <Text style={styles.iconText}>⚙️</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={[styles.iconButton, torchOn && styles.iconButtonActive]}
+            onPress={onToggleTorch}
+          >
+            <Text style={styles.iconText}>{torchOn ? '⚡' : '💡'}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Central Viewfinder Mask */}
@@ -93,6 +110,8 @@ export const CameraOverlay: React.FC<CameraOverlayProps> = ({
                 ? t.camera.alignBp
                 : deviceMode === 'BLOOD_GLUCOSE'
                 ? t.camera.alignGlucose
+                : deviceMode === 'PULSE'
+                ? t.camera.alignPulse
                 : t.camera.alignDevice}
             </Text>
             <Text style={styles.viewfinderSubtext}>{t.camera.antiGlareTip}</Text>
@@ -134,9 +153,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingTop: 54,
-    paddingHorizontal: SPACING.lg,
+    paddingHorizontal: SPACING.md,
     paddingBottom: SPACING.md,
     backgroundColor: 'rgba(15, 23, 42, 0.4)',
+  },
+  topActionGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   iconButton: {
     width: 44,

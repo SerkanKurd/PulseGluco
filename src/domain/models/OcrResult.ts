@@ -40,7 +40,16 @@ export interface ParsedBloodGlucoseOcr {
   rawMatchedLines: string[];
 }
 
-export type ParsedOcrResult = ParsedBloodPressureOcr | ParsedBloodGlucoseOcr;
+export interface ParsedPulseOcr {
+  deviceType: 'PULSE';
+  pulse: number;
+  spo2?: number;
+  confidence: number;
+  status: StatusCategory;
+  rawMatchedLines: string[];
+}
+
+export type ParsedOcrResult = ParsedBloodPressureOcr | ParsedBloodGlucoseOcr | ParsedPulseOcr;
 
 export interface OcrProcessingResult {
   success: boolean;

@@ -114,4 +114,47 @@ describe('BloodGlucoseParser', () => {
       expect(result?.confidence).toBeGreaterThanOrEqual(0.9);
     });
   });
+
+  describe('Noise, Timestamps & Memory Tag Filtering', () => {
+    it('ignores clock time and memory indicators, extracting true glucose reading', () => {
+      const ocrText = `
+        Accu-Chek Guide
+        10:45 AM
+        MEM 03
+        118
+        mg/dL
+      `;
+
+      const result = parser.parse(ocrText);
+      expect(result).not.toBeNull();
+      expect(result?.glucoseValue).toBe(118);
+      expect(result?.unit).toBe('mg/dL');
+    });
+
+    it('ignores calendar dates and parses mmol/L decimal correctly', () => {
+      const ocrText = `
+        CONTOUR PLUS
+        24.09.2026
+        5.8
+        mmol/L
+      `;
+
+      const result = parser.parse(ocrText);
+      expect(result).not.toBeNull();
+      expect(result?.glucoseValue).toBe(5.8);
+      expect(result?.unit).toBe('mmol/L');
+    });
+
+    it('handles common OCR character corruptions for mg/dL (mg/di, mgdl)', () => {
+      const ocrText = `
+        OneTouch
+        134
+        mg/dI
+      `;
+
+      const result = parser.parse(ocrText);
+      expect(result).not.toBeNull();
+      expect(result?.glucoseValue).toBe(134);
+    });
+  });
 });

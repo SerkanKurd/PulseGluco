@@ -14,7 +14,7 @@ export class ImagePreprocessor {
   public async prepareForOcr(
     imageUri: string,
     options?: PreprocessingOptions
-  ): Promise<{ processedUri: string; width: number; height: number }> {
+  ): Promise<{ processedUri: string; base64?: string; width: number; height: number; originalUri: string }> {
     try {
       const actions: ImageManipulator.Action[] = [];
 
@@ -54,8 +54,10 @@ export class ImagePreprocessor {
 
       return {
         processedUri: manipResult.uri,
+        base64: manipResult.base64,
         width: manipResult.width,
         height: manipResult.height,
+        originalUri: imageUri,
       };
     } catch (error) {
       // If manipulation fails (e.g. running in mock or unit test environment), fallback to original image
@@ -63,6 +65,7 @@ export class ImagePreprocessor {
         processedUri: imageUri,
         width: options?.imageWidth || 1080,
         height: options?.imageHeight || 1920,
+        originalUri: imageUri,
       };
     }
   }

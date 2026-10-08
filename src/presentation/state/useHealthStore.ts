@@ -55,7 +55,7 @@ export interface HealthState {
   analytics: AnalyticsViewData | null;
   isLoading: boolean;
   isProcessingOcr: boolean;
-  activeFilter: 'ALL' | 'BLOOD_PRESSURE' | 'BLOOD_GLUCOSE';
+  activeFilter: 'ALL' | 'BLOOD_PRESSURE' | 'BLOOD_GLUCOSE' | 'PULSE';
   selectedDaysRange: 7 | 14 | 30 | 90;
   activeTab: 'dashboard' | 'camera' | 'analytics' | 'export';
   forcedScanMode: DeviceType | 'AUTO';
@@ -71,7 +71,7 @@ export interface HealthState {
   loadRecords: () => Promise<void>;
   loadAnalytics: (days?: 7 | 14 | 30 | 90) => Promise<void>;
   setActiveTab: (tab: 'dashboard' | 'camera' | 'analytics' | 'export') => void;
-  setActiveFilter: (filter: 'ALL' | 'BLOOD_PRESSURE' | 'BLOOD_GLUCOSE') => void;
+  setActiveFilter: (filter: 'ALL' | 'BLOOD_PRESSURE' | 'BLOOD_GLUCOSE' | 'PULSE') => void;
   setForcedScanMode: (mode: DeviceType | 'AUTO') => void;
   processCapturedImage: (imageUri: string, width?: number, height?: number) => Promise<boolean>;
   updateVerificationField: <K extends keyof VerificationState>(field: K, value: VerificationState[K]) => void;
@@ -155,12 +155,13 @@ export const useHealthStore = create<HealthState>((set, get) => ({
       const mode = get().forcedScanMode;
       const forced: DeviceType | undefined = mode === 'AUTO' ? undefined : mode;
 
-      // Define standard viewfinder bounding box region (centered 80% width, 45% height)
+      // Generous viewfinder bounding box region (90% width, 76% height)
+      // to ensure bottom digits (pulse on BP monitors) and indicators are never clipped
       const cropRegion = {
-        x: 0.1,
-        y: 0.25,
-        width: 0.8,
-        height: 0.45,
+        x: 0.05,
+        y: 0.12,
+        width: 0.90,
+        height: 0.76,
       };
 
       const result = await processImageUseCase.execute(imageUri, {
@@ -185,6 +186,25 @@ export const useHealthStore = create<HealthState>((set, get) => ({
               systolic: parsed.systolic,
               diastolic: parsed.diastolic,
               pulse: parsed.pulse || 72,
+              glucoseValue: 100,
+              unit: 'mg/dL',
+              mealTag: 'FASTING',
+              notes: result.usedFallback ? 'Verified with Vision AI fallback' : 'Auto-detected via on-device OCR',
+            },
+          });
+        } else if (parsed.deviceType === 'PULSE') {
+          set({
+            verification: {
+              isVisible: true,
+              capturedImageUri: result.processedImageUri || imageUri,
+              parsedResult: parsed,
+              rawOcrText: result.rawExtractedText,
+              confidence: result.confidenceScore,
+              usedFallback: result.usedFallback,
+              deviceType: 'PULSE',
+              systolic: 120,
+              diastolic: 80,
+              pulse: parsed.pulse,
               glucoseValue: 100,
               unit: 'mg/dL',
               mealTag: 'FASTING',
@@ -266,6 +286,23 @@ export const useHealthStore = create<HealthState>((set, get) => ({
           source: v.usedFallback ? 'OCR_FALLBACK' : v.confidence > 0 ? 'OCR_AUTO' : 'MANUAL',
           notes: v.notes,
         });
+      } else if (v.deviceType === 'PULSE') {
+        const pul = Number(v.pulse);
+        if (!pul || pul <= 0) {
+          Alert.alert('Incomplete Reading', 'Please enter a valid pulse rate.');
+          set({ isLoading: false });
+          return;
+        }
+
+        await saveRecordUseCase.savePulse({
+          pulse: pul,
+          spo2: v.parsedResult && 'spo2' in v.parsedResult ? (v.parsedResult as any).spo2 : undefined,
+          imageUri: v.capturedImageUri || undefined,
+          rawOcrText: v.rawOcrText,
+          ocrConfidence: v.confidence,
+          source: v.usedFallback ? 'OCR_FALLBACK' : v.confidence > 0 ? 'OCR_AUTO' : 'MANUAL',
+          notes: v.notes,
+        });
       } else {
         const gluc = Number(v.glucoseValue);
         if (!gluc || gluc <= 0) {
@@ -311,7 +348,7 @@ export const useHealthStore = create<HealthState>((set, get) => ({
         deviceType: type,
         systolic: type === 'BLOOD_PRESSURE' ? 120 : 0,
         diastolic: type === 'BLOOD_PRESSURE' ? 80 : 0,
-        pulse: type === 'BLOOD_PRESSURE' ? 72 : undefined,
+        pulse: type === 'BLOOD_PRESSURE' || type === 'PULSE' ? 72 : undefined,
         glucoseValue: type === 'BLOOD_GLUCOSE' ? 100 : 0,
         confidence: 0,
         notes: 'Manual entry',

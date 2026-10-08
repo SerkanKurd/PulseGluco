@@ -173,3 +173,40 @@ export function classifyBloodGlucose(
     return BP_STATUS_CATEGORIES[MedicalSeverity.DIABETES];
   }
 }
+
+/**
+ * Classify Resting Pulse Rate (Heart Rate in bpm)
+ * Normal resting pulse: 60 - 100 bpm
+ * Bradycardia: < 60 bpm
+ * Tachycardia: > 100 bpm
+ */
+export function classifyPulse(pulse: number): StatusCategory {
+  if (pulse < 60) {
+    return {
+      key: MedicalSeverity.HYPOTENSION,
+      label: 'Low Pulse (Bradycardia)',
+      shortLabel: 'Low',
+      color: '#06B6D4',
+      backgroundColor: '#ECFEFF',
+      description: 'Resting pulse is below 60 bpm',
+    };
+  }
+  if (pulse > 100) {
+    return {
+      key: MedicalSeverity.STAGE_2,
+      label: 'Elevated Pulse (Tachycardia)',
+      shortLabel: 'Elevated',
+      color: '#EF4444',
+      backgroundColor: '#FEF2F2',
+      description: 'Resting pulse is above 100 bpm',
+    };
+  }
+  return {
+    key: MedicalSeverity.NORMAL,
+    label: 'Normal Pulse',
+    shortLabel: 'Normal',
+    color: '#10B981',
+    backgroundColor: '#ECFDF5',
+    description: 'Normal resting heart rate (60–100 bpm)',
+  };
+}

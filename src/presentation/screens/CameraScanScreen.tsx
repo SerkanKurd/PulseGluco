@@ -17,12 +17,17 @@ import { CameraOverlay } from '../components/CameraOverlay';
 import { VerificationModal } from '../components/VerificationModal';
 import { useTranslation } from '../../core/i18n/useTranslation';
 
+import { geminiVisionFallback } from '../../data/services/GeminiVisionFallbackService';
+import { TextInput, Modal } from 'react-native';
+
 export const CameraScanScreen: React.FC = () => {
   const { t } = useTranslation();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const [permission, requestPermission] = useCameraPermissions();
   const [torchOn, setTorchOn] = useState(false);
+  const [settingsVisible, setSettingsVisible] = useState(false);
+  const [geminiKeyInput, setGeminiKeyInput] = useState(geminiVisionFallback.getApiKey());
   const cameraRef = useRef<any>(null);
 
   const {
@@ -75,6 +80,12 @@ export const CameraScanScreen: React.FC = () => {
     }
   };
 
+  const handleSaveApiKey = () => {
+    geminiVisionFallback.setApiKey(geminiKeyInput.trim());
+    setSettingsVisible(false);
+    Alert.alert('Saved', 'Gemini Vision AI configuration updated.');
+  };
+
   // If permissions not yet granted
   if (!permission) {
     return (
@@ -123,6 +134,10 @@ export const CameraScanScreen: React.FC = () => {
         onPickImage={handlePickImage}
         onClose={() => setActiveTab('dashboard')}
         isProcessing={isProcessingOcr}
+        onOpenSettings={() => {
+          setGeminiKeyInput(geminiVisionFallback.getApiKey());
+          setSettingsVisible(true);
+        }}
       />
 
       {/* OCR Processing HUD Overlay */}
@@ -137,6 +152,34 @@ export const CameraScanScreen: React.FC = () => {
           </View>
         </View>
       )}
+
+      {/* Gemini Vision Settings Modal */}
+      <Modal visible={settingsVisible} transparent animationType="fade" onRequestClose={() => setSettingsVisible(false)}>
+        <View style={styles.settingsOverlay}>
+          <View style={styles.settingsCard}>
+            <Text style={styles.settingsTitle}>{t.camera.apiKeyTitle}</Text>
+            <Text style={styles.settingsDesc}>{t.camera.apiKeyDesc}</Text>
+            <TextInput
+              style={styles.keyInput}
+              placeholder={t.camera.apiKeyPlaceholder}
+              placeholderTextColor={colors.textMuted}
+              value={geminiKeyInput}
+              onChangeText={setGeminiKeyInput}
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry
+            />
+            <View style={styles.settingsBtnRow}>
+              <TouchableOpacity style={styles.settingsCancelBtn} onPress={() => setSettingsVisible(false)}>
+                <Text style={styles.settingsCancelText}>{t.common.cancel}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.settingsSaveBtn} onPress={handleSaveApiKey}>
+                <Text style={styles.settingsSaveText}>{t.camera.saveKey}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Verification Modal */}
       <VerificationModal
@@ -249,5 +292,70 @@ const getStyles = (colors: ColorTheme, isDark: boolean) =>
       fontSize: TYPOGRAPHY.fontSizes.xs,
       color: colors.textSecondary,
       textAlign: 'center',
+    },
+    settingsOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.7)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: SPACING.lg,
+    },
+    settingsCard: {
+      backgroundColor: colors.surface,
+      borderRadius: RADIUS.lg,
+      padding: SPACING.xl,
+      width: '100%',
+      maxWidth: 380,
+      borderWidth: 1,
+      borderColor: colors.surfaceBorder,
+    },
+    settingsTitle: {
+      fontSize: TYPOGRAPHY.fontSizes.lg,
+      fontWeight: '800',
+      color: colors.textPrimary,
+      marginBottom: SPACING.xs,
+    },
+    settingsDesc: {
+      fontSize: TYPOGRAPHY.fontSizes.xs,
+      color: colors.textSecondary,
+      lineHeight: 18,
+      marginBottom: SPACING.md,
+    },
+    keyInput: {
+      backgroundColor: colors.surfaceSubtle,
+      borderWidth: 1,
+      borderColor: colors.surfaceBorder,
+      borderRadius: RADIUS.md,
+      padding: SPACING.sm,
+      fontSize: TYPOGRAPHY.fontSizes.sm,
+      color: colors.textPrimary,
+      marginBottom: SPACING.md,
+    },
+    settingsBtnRow: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      gap: SPACING.sm,
+    },
+    settingsCancelBtn: {
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: RADIUS.md,
+      backgroundColor: colors.surfaceSubtle,
+    },
+    settingsCancelText: {
+      fontSize: TYPOGRAPHY.fontSizes.sm,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    settingsSaveBtn: {
+      paddingVertical: 10,
+      paddingHorizontal: 18,
+      borderRadius: RADIUS.md,
+      backgroundColor: colors.primary,
+    },
+    settingsSaveText: {
+      fontSize: TYPOGRAPHY.fontSizes.sm,
+      fontWeight: '700',
+      color: '#FFFFFF',
     },
   });

@@ -7,12 +7,14 @@ import {
   HealthRecord,
   BloodPressureRecord,
   BloodGlucoseRecord,
+  PulseRecord,
   isBloodPressureRecord,
   isBloodGlucoseRecord,
+  isPulseRecord,
 } from '../../domain/models/HealthRecord';
 import { appDatabase } from '../datasources/local/Database';
 import { generateMockHealthRecords } from '../../core/utils/mock-data-generator';
-import { classifyBloodPressure, classifyBloodGlucose } from '../../core/constants/medical-thresholds';
+import { classifyBloodPressure, classifyBloodGlucose, classifyPulse } from '../../core/constants/medical-thresholds';
 
 export class HealthRecordRepositoryImpl implements IHealthRecordRepository {
   // In-memory cache for instant UI response and offline resilience
@@ -76,7 +78,7 @@ export class HealthRecordRepositoryImpl implements IHealthRecordRepository {
           record.deviceType,
           isBloodPressureRecord(record) ? record.systolic : null,
           isBloodPressureRecord(record) ? record.diastolic : null,
-          isBloodPressureRecord(record) ? record.pulse ?? null : null,
+          isBloodPressureRecord(record) ? record.pulse ?? null : isPulseRecord(record) ? record.pulse ?? null : null,
           isBloodGlucoseRecord(record) ? record.glucoseValue : null,
           isBloodGlucoseRecord(record) ? record.unit : null,
           isBloodGlucoseRecord(record) ? record.mealTag : null,
@@ -267,6 +269,22 @@ export class HealthRecordRepositoryImpl implements IHealthRecordRepository {
         diastolic: row.diastolic,
         pulse: row.pulse || undefined,
         status: classifyBloodPressure(row.systolic, row.diastolic),
+        source: row.source || 'OCR_AUTO',
+        ocrConfidence: row.ocr_confidence,
+        rawOcrText: row.raw_ocr_text,
+        imageUri: row.image_uri,
+        notes: row.notes,
+        isSynced: Boolean(row.is_synced),
+      };
+      return record;
+    } else if (row.device_type === 'PULSE') {
+      const pulseVal = row.pulse || 72;
+      const record: PulseRecord = {
+        id: row.id,
+        timestamp: row.timestamp,
+        deviceType: 'PULSE',
+        pulse: pulseVal,
+        status: classifyPulse(pulseVal),
         source: row.source || 'OCR_AUTO',
         ocrConfidence: row.ocr_confidence,
         rawOcrText: row.raw_ocr_text,

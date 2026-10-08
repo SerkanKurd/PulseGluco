@@ -29,13 +29,30 @@ export class ProcessDeviceImageUseCase {
         imageHeight: options?.imageHeight,
       });
 
-      // 2. Run Primary On-Device OCR Engine
-      const ocrResult = await this.ocrEngine.recognizeText(prepResult.processedUri);
+      // 2. Run Primary OCR Engine (ML Kit / Cloud OCR / Smart Engine)
+      let ocrResult = await this.ocrEngine.recognizeText(prepResult.processedUri, {
+        base64: prepResult.base64,
+        hintDeviceType: options?.forcedDeviceType,
+      });
 
       // 3. Run Smart Parser with spatial layout, label matching, and 7-segment digit correction
-      const parseResult = this.smartParser.parse(ocrResult.fullText, ocrResult.blocks, {
+      let parseResult = this.smartParser.parse(ocrResult.fullText, ocrResult.blocks, {
         forcedDeviceType: options?.forcedDeviceType,
       });
+
+      // 3b. If parsing failed or needs fallback, try full uncropped image in case digits were outside ROI
+      if (parseResult.needsFallback && options?.cropRegion) {
+        const fullOcrResult = await this.ocrEngine.recognizeText(imageUri, {
+          hintDeviceType: options?.forcedDeviceType,
+        });
+        const fullParseResult = this.smartParser.parse(fullOcrResult.fullText, fullOcrResult.blocks, {
+          forcedDeviceType: options?.forcedDeviceType,
+        });
+        if (fullParseResult.result && (!parseResult.result || fullParseResult.result.confidence > parseResult.result.confidence)) {
+          ocrResult = fullOcrResult;
+          parseResult = fullParseResult;
+        }
+      }
 
       // 4. Check if confidence is adequate (>= 0.75) or if Fallback Service is required
       if (!parseResult.needsFallback && parseResult.result) {
@@ -53,6 +70,7 @@ export class ProcessDeviceImageUseCase {
       console.log('On-device OCR confidence low or unreadable. Invoking Vision LLM fallback...');
       const fallbackResult: ParsedOcrResult | null = await this.fallbackService.parseWithVisionLLM({
         imageUri: prepResult.processedUri,
+        imageBase64: prepResult.base64,
         hintDeviceType: options?.forcedDeviceType,
         primaryOcrText: ocrResult.fullText,
       });

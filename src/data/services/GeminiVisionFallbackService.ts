@@ -1,6 +1,6 @@
 import { IVisionFallbackService, FallbackVisionRequest } from '../../domain/services/IVisionFallbackService';
 import { ParsedOcrResult } from '../../domain/models/OcrResult';
-import { classifyBloodPressure, classifyBloodGlucose } from '../../core/constants/medical-thresholds';
+import { classifyBloodPressure, classifyBloodGlucose, classifyPulse } from '../../core/constants/medical-thresholds';
 import * as FileSystem from 'expo-file-system/legacy';
 
 export class GeminiVisionFallbackService implements IVisionFallbackService {
@@ -13,6 +13,14 @@ export class GeminiVisionFallbackService implements IVisionFallbackService {
 
   public setApiKey(key: string) {
     this.apiKey = key;
+  }
+
+  public getApiKey(): string {
+    return this.apiKey;
+  }
+
+  public hasApiKey(): boolean {
+    return Boolean(this.apiKey && this.apiKey.trim().length > 0);
   }
 
   public async parseWithVisionLLM(request: FallbackVisionRequest): Promise<ParsedOcrResult | null> {
@@ -33,8 +41,9 @@ export class GeminiVisionFallbackService implements IVisionFallbackService {
         throw new Error('Image base64 payload is missing.');
       }
 
-      const prompt = `You are a medical OCR specialist. Examine this medical device screen (blood pressure monitor or blood glucose meter).
-Accurately read the digital numbers even if the 7-segment display has low contrast or glare.
+      const prompt = `You are a medical OCR specialist. Examine this medical device screen (blood pressure monitor, blood glucose meter, or pulse oximeter).
+Accurately read the digital numbers even if the 7-segment display has low contrast, broken segments, or glare.
+${request.hintDeviceType ? `Hint: User selected device mode is ${request.hintDeviceType}.` : ''}
 
 Respond STRICTLY with a valid JSON object in one of these formats:
 
@@ -53,6 +62,14 @@ If Blood Glucose Meter:
   "glucoseValue": 105,
   "unit": "mg/dL" or "mmol/L",
   "mealTag": "FASTING" or "POSTPRANDIAL" or "RANDOM",
+  "confidence": 0.95
+}
+
+If Fingertip Pulse Oximeter or Pulse Monitor:
+{
+  "deviceType": "PULSE",
+  "pulse": 72,
+  "spo2": 98,
   "confidence": 0.95
 }
 
@@ -111,7 +128,7 @@ If the image is unreadable, return:
           pulse: pul,
           confidence: Number(parsedJson.confidence) || 0.95,
           status: classifyBloodPressure(sys, dia),
-          rawMatchedLines: [`[LLM Fallback] SYS: ${sys}, DIA: ${dia}`],
+          rawMatchedLines: [`[Vision AI] SYS: ${sys}, DIA: ${dia}${pul ? `, PULSE: ${pul}` : ''}`],
         };
       } else if (parsedJson.deviceType === 'BLOOD_GLUCOSE') {
         const val = Number(parsedJson.glucoseValue);
@@ -124,7 +141,18 @@ If the image is unreadable, return:
           mealTag,
           confidence: Number(parsedJson.confidence) || 0.95,
           status: classifyBloodGlucose(val, unit, mealTag),
-          rawMatchedLines: [`[LLM Fallback] Glucose: ${val} ${unit}`],
+          rawMatchedLines: [`[Vision AI] Glucose: ${val} ${unit}`],
+        };
+      } else if (parsedJson.deviceType === 'PULSE') {
+        const pul = Number(parsedJson.pulse) || 72;
+        const spo2 = parsedJson.spo2 ? Number(parsedJson.spo2) : undefined;
+        return {
+          deviceType: 'PULSE',
+          pulse: pul,
+          spo2,
+          confidence: Number(parsedJson.confidence) || 0.95,
+          status: classifyPulse(pul),
+          rawMatchedLines: [`[Vision AI] Pulse: ${pul} bpm${spo2 ? `, SpO2: ${spo2}%` : ''}`],
         };
       }
 

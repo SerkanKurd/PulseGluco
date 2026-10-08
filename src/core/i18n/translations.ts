@@ -14,6 +14,7 @@ export interface Translations {
     all: string;
     bp: string;
     glucose: string;
+    pulse: string;
     notes: string;
     notesPlaceholder: string;
     savedSuccessfully: string;
@@ -36,6 +37,7 @@ export interface Translations {
     logbook: string;
     logBpManually: string;
     logGlucoseManually: string;
+    logPulseManually: string;
     noRecentReadings: string;
     noReadingsFilter: string;
     scanDevicePrompt: string;
@@ -45,22 +47,29 @@ export interface Translations {
     alignDevice: string;
     alignBp: string;
     alignGlucose: string;
+    alignPulse: string;
     antiGlareTip: string;
     gallery: string;
     modeAuto: string;
     modeBp: string;
     modeGlucose: string;
+    modePulse: string;
     analyzingTitle: string;
     analyzingSubtitle: string;
     permissionTitle: string;
     permissionBody: string;
     grantAccess: string;
     returnDashboard: string;
+    apiKeyTitle: string;
+    apiKeyDesc: string;
+    apiKeyPlaceholder: string;
+    saveKey: string;
   };
   verification: {
     title: string;
     bpSubtitle: string;
     glucoseSubtitle: string;
+    pulseSubtitle: string;
     whoClassification: string;
     sys: string;
     dia: string;
@@ -79,6 +88,7 @@ export interface Translations {
     onDeviceOcr: string;
     incompleteBp: string;
     incompleteGlucose: string;
+    incompletePulse: string;
   };
   status: {
     optimal: string;
@@ -159,6 +169,7 @@ export const translations: Record<SupportedLocale, Translations> = {
       all: 'All',
       bp: 'BP',
       glucose: 'Glucose',
+      pulse: 'Pulse',
       notes: 'Notes & Observations',
       notesPlaceholder: 'e.g. Left arm, resting for 5 mins',
       savedSuccessfully: 'Saved Successfully',
@@ -176,11 +187,12 @@ export const translations: Record<SupportedLocale, Translations> = {
     },
     dashboard: {
       scanHeroTitle: 'Scan Device Screen',
-      scanHeroSubtitle: 'Photograph blood pressure monitor or glucometer',
+      scanHeroSubtitle: 'Photograph blood pressure monitor, glucometer, or pulse oximeter',
       latestReadings: 'LATEST READINGS',
       logbook: 'MEASUREMENT LOGBOOK',
       logBpManually: '+ Log BP Manually',
       logGlucoseManually: '+ Log Glucose Manually',
+      logPulseManually: '+ Log Pulse Manually',
       noRecentReadings: 'No recent readings',
       noReadingsFilter: 'No readings found for this filter.',
       scanDevicePrompt: 'Tap "Scan Device" below to capture your first reading.',
@@ -190,23 +202,30 @@ export const translations: Record<SupportedLocale, Translations> = {
       alignDevice: 'Align Device LCD Screen',
       alignBp: 'Align Blood Pressure Display',
       alignGlucose: 'Align Glucometer Screen',
+      alignPulse: 'Align Pulse Monitor or Oximeter',
       antiGlareTip: 'Hold steady • Avoid glare & reflections',
       gallery: '🖼️ Gallery',
       modeAuto: 'Auto',
       modeBp: 'BP',
       modeGlucose: 'Glucose',
+      modePulse: 'Pulse',
       analyzingTitle: 'Analyzing Device Screen',
       analyzingSubtitle: 'Detecting digits, contrast normalization & spatial parsing...',
       permissionTitle: 'Camera Permission Required',
       permissionBody:
-        'PulseGluco needs access to your camera to scan blood pressure monitors and glucometer LCD screens for offline OCR extraction.',
+        'PulseGluco needs access to your camera to scan blood pressure monitors, glucometer LCD screens, and pulse oximeters for offline OCR extraction.',
       grantAccess: 'Grant Camera Access',
       returnDashboard: 'Return to Dashboard',
+      apiKeyTitle: 'Vision AI (Gemini 1.5)',
+      apiKeyDesc: 'Optional: Enter your free Gemini API key to enable high-accuracy LCD screen detection.',
+      apiKeyPlaceholder: 'Enter Gemini API Key',
+      saveKey: 'Save Key',
     },
     verification: {
       title: 'Verify Measurement',
       bpSubtitle: 'Blood Pressure Monitor Reading',
       glucoseSubtitle: 'Blood Glucose Meter Reading',
+      pulseSubtitle: 'Pulse Monitor / Oximeter Reading',
       whoClassification: 'WHO / ADA CLASSIFICATION',
       sys: 'SYS (mmHg)',
       dia: 'DIA (mmHg)',
@@ -225,6 +244,7 @@ export const translations: Record<SupportedLocale, Translations> = {
       onDeviceOcr: 'On-Device OCR',
       incompleteBp: 'Please enter both Systolic and Diastolic values.',
       incompleteGlucose: 'Please enter a valid Blood Glucose number.',
+      incompletePulse: 'Please enter a valid Pulse reading.',
     },
     status: {
       optimal: 'Normal / Optimal',
@@ -306,6 +326,7 @@ export const translations: Record<SupportedLocale, Translations> = {
       all: 'Tümü',
       bp: 'Tansiyon',
       glucose: 'Şeker',
+      pulse: 'Nabız',
       notes: 'Notlar ve Gözlemler',
       notesPlaceholder: 'Örn. Sol kol, 5 dk dinlendikten sonra',
       savedSuccessfully: 'Başarıyla Kaydedildi',
@@ -323,11 +344,12 @@ export const translations: Record<SupportedLocale, Translations> = {
     },
     dashboard: {
       scanHeroTitle: 'Cihaz Ekranını Tara',
-      scanHeroSubtitle: 'Tansiyon aletinizi veya glukometrenizi fotoğraflayın',
+      scanHeroSubtitle: 'Tansiyon aletinizi, glukometrenizi veya oksimetrenizi fotoğraflayın',
       latestReadings: 'SON ÖLÇÜMLER',
       logbook: 'ÖLÇÜM GÜNLÜĞÜ',
       logBpManually: '+ Manuel Tansiyon',
       logGlucoseManually: '+ Manuel Şeker',
+      logPulseManually: '+ Manuel Nabız',
       noRecentReadings: 'Henüz ölçüm yok',
       noReadingsFilter: 'Bu filtreye ait kayıt bulunamadı.',
       scanDevicePrompt: 'İlk ölçümünüzü kaydetmek için aşağıdaki "Tara" butonuna basın.',
@@ -337,23 +359,30 @@ export const translations: Record<SupportedLocale, Translations> = {
       alignDevice: 'Cihaz LCD Ekranını Hizalayın',
       alignBp: 'Tansiyon Aleti Ekranını Hizalayın',
       alignGlucose: 'Glukometre Ekranını Hizalayın',
+      alignPulse: 'Nabız Ölçer veya Oksimetreyi Hizalayın',
       antiGlareTip: 'Sabit tutun • Parlama ve yansımadan kaçının',
       gallery: '🖼️ Galeri',
       modeAuto: 'Oto',
       modeBp: 'Tansiyon',
       modeGlucose: 'Şeker',
+      modePulse: 'Nabız',
       analyzingTitle: 'Cihaz Ekranı Analiz Ediliyor',
       analyzingSubtitle: 'Rakamlar, kontrast iyileştirme ve alan ayrıştırması yapılıyor...',
       permissionTitle: 'Kamera İzni Gerekli',
       permissionBody:
-        'PulseGluco, tansiyon aleti ve glukometre ekranlarındaki değerleri çevrimdışı okumak için kameranıza erişim gerektirir.',
+        'PulseGluco, tansiyon aleti, glukometre ve oksimetre ekranlarındaki değerleri çevrimdışı okumak için kameranıza erişim gerektirir.',
       grantAccess: 'Kamera İzni Ver',
       returnDashboard: 'Ana Sayfaya Dön',
+      apiKeyTitle: 'Görsel Yapay Zeka (Gemini 1.5)',
+      apiKeyDesc: 'İsteğe bağlı: Yüksek doğrulukta ekran tanıma için ücretsiz Gemini API anahtarınızı girin.',
+      apiKeyPlaceholder: 'Gemini API Anahtarını Girin',
+      saveKey: 'Anahtarı Kaydet',
     },
     verification: {
       title: 'Ölçümü Doğrula',
       bpSubtitle: 'Tansiyon Aleti Ekran Okuması',
       glucoseSubtitle: 'Kan Şekeri Cihazı Okuması',
+      pulseSubtitle: 'Nabız Ölçer / Oksimetre Okuması',
       whoClassification: 'DSÖ / ADA TIBBİ SINIFLANDIRMASI',
       sys: 'SİSTOLİK (Büyük)',
       dia: 'DİYASTOLİK (Küçük)',
@@ -372,6 +401,7 @@ export const translations: Record<SupportedLocale, Translations> = {
       onDeviceOcr: 'Cihaz İçi OCR',
       incompleteBp: 'Lütfen hem Büyük (SYS) hem Küçük (DIA) tansiyon değerlerini girin.',
       incompleteGlucose: 'Lütfen geçerli bir kan şekeri değeri girin.',
+      incompletePulse: 'Lütfen geçerli bir nabız değeri girin.',
     },
     status: {
       optimal: 'Normal / İdeal',

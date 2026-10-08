@@ -18,6 +18,7 @@ import { VerificationModal } from '../components/VerificationModal';
 import {
   isBloodPressureRecord,
   isBloodGlucoseRecord,
+  isPulseRecord,
   HealthRecord,
 } from '../../domain/models/HealthRecord';
 import {
@@ -66,10 +67,12 @@ export const DashboardScreen: React.FC = () => {
 
   const latestBp = records.find(isBloodPressureRecord);
   const latestGlucose = records.find(isBloodGlucoseRecord);
+  const latestPulse = records.find(isPulseRecord);
 
   const filteredRecords = records.filter((r) => {
     if (activeFilter === 'BLOOD_PRESSURE') return isBloodPressureRecord(r);
     if (activeFilter === 'BLOOD_GLUCOSE') return isBloodGlucoseRecord(r);
+    if (activeFilter === 'PULSE') return isPulseRecord(r);
     return true;
   });
 
@@ -156,6 +159,12 @@ export const DashboardScreen: React.FC = () => {
           >
             <Text style={styles.quickActionBtnText}>{t.dashboard.logGlucoseManually}</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.quickActionBtn}
+            onPress={() => openManualEntry('PULSE')}
+          >
+            <Text style={styles.quickActionBtnText}>{t.dashboard.logPulseManually}</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Today's Latest Measurements Overview */}
@@ -209,6 +218,19 @@ export const DashboardScreen: React.FC = () => {
                 {t.common.glucose} ({records.filter(isBloodGlucoseRecord).length})
               </Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filterTab, activeFilter === 'PULSE' && styles.filterTabActive]}
+              onPress={() => setActiveFilter('PULSE')}
+            >
+              <Text
+                style={[
+                  styles.filterTabText,
+                  activeFilter === 'PULSE' && styles.filterTabTextActive,
+                ]}
+              >
+                {t.common.pulse} ({records.filter(isPulseRecord).length})
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -224,10 +246,10 @@ export const DashboardScreen: React.FC = () => {
                 <View style={styles.recordHeader}>
                   <View style={styles.recordTypeTag}>
                     <Text style={styles.recordTypeIcon}>
-                      {isBloodPressureRecord(record) ? '❤️' : '🩸'}
+                      {isBloodPressureRecord(record) ? '❤️' : isPulseRecord(record) ? '💓' : '🩸'}
                     </Text>
                     <Text style={styles.recordTypeName}>
-                      {isBloodPressureRecord(record) ? t.common.bp : t.common.glucose}
+                      {isBloodPressureRecord(record) ? t.common.bp : isPulseRecord(record) ? t.common.pulse : t.common.glucose}
                     </Text>
                   </View>
                   <Text style={styles.recordTime}>{formatDateTime(record.timestamp)}</Text>
@@ -238,11 +260,15 @@ export const DashboardScreen: React.FC = () => {
                     <Text style={styles.recordPrimaryNum}>
                       {isBloodPressureRecord(record)
                         ? formatBloodPressure(record.systolic, record.diastolic)
+                        : isPulseRecord(record)
+                        ? `${record.pulse} bpm`
                         : formatGlucose(record.glucoseValue, record.unit)}
                     </Text>
                     <Text style={styles.recordSecondarySub}>
                       {isBloodPressureRecord(record)
                         ? `${t.dashboard.pulseBpm}: ${formatPulse(record.pulse)}`
+                        : isPulseRecord(record)
+                        ? record.spo2 ? `SpO2: ${record.spo2}%` : `${t.dashboard.pulseBpm}: ${record.pulse} bpm`
                         : `${t.verification.mealContext}: ${mealTagLabels[record.mealTag] || record.mealTag}`}
                     </Text>
                   </View>

@@ -15,7 +15,7 @@ import { ColorTheme, RADIUS, SPACING, TYPOGRAPHY } from '../../core/constants/th
 import { useTheme } from '../../core/theme/useTheme';
 import { StatusBadge } from './StatusBadge';
 import { VerificationState } from '../state/useHealthStore';
-import { classifyBloodPressure, classifyBloodGlucose } from '../../core/constants/medical-thresholds';
+import { classifyBloodPressure, classifyBloodGlucose, classifyPulse } from '../../core/constants/medical-thresholds';
 import { GlucoseUnit, MealTag } from '../../domain/models/HealthRecord';
 import { useTranslation } from '../../core/i18n/useTranslation';
 
@@ -38,10 +38,13 @@ export const VerificationModal: React.FC<VerificationModalProps> = ({
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const isBp = verification.deviceType === 'BLOOD_PRESSURE';
+  const isPulse = verification.deviceType === 'PULSE';
 
   // Compute live status preview based on current editable inputs
   const currentStatus = isBp
     ? classifyBloodPressure(verification.systolic || 0, verification.diastolic || 0)
+    : isPulse
+    ? classifyPulse(verification.pulse || 72)
     : classifyBloodGlucose(verification.glucoseValue || 0, verification.unit, verification.mealTag);
 
   return (
@@ -61,7 +64,11 @@ export const VerificationModal: React.FC<VerificationModalProps> = ({
             <View style={{ flex: 1 }}>
               <Text style={styles.title}>{t.verification.title}</Text>
               <Text style={styles.subtitle}>
-                {isBp ? t.verification.bpSubtitle : t.verification.glucoseSubtitle}
+                {isBp
+                  ? t.verification.bpSubtitle
+                  : isPulse
+                  ? t.verification.pulseSubtitle
+                  : t.verification.glucoseSubtitle}
               </Text>
             </View>
             <TouchableOpacity onPress={onDismiss} style={styles.closeButton}>
@@ -80,11 +87,19 @@ export const VerificationModal: React.FC<VerificationModalProps> = ({
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.deviceTypeBtn, !isBp && styles.deviceTypeBtnActive]}
+              style={[styles.deviceTypeBtn, !isBp && !isPulse && styles.deviceTypeBtnActive]}
               onPress={() => onUpdateField('deviceType', 'BLOOD_GLUCOSE')}
             >
-              <Text style={[styles.deviceTypeBtnText, !isBp && styles.deviceTypeBtnTextActive]}>
+              <Text style={[styles.deviceTypeBtnText, !isBp && !isPulse && styles.deviceTypeBtnTextActive]}>
                 🩸 {t.common.glucose}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.deviceTypeBtn, isPulse && styles.deviceTypeBtnActive]}
+              onPress={() => onUpdateField('deviceType', 'PULSE')}
+            >
+              <Text style={[styles.deviceTypeBtnText, isPulse && styles.deviceTypeBtnTextActive]}>
+                💓 {t.common.pulse}
               </Text>
             </TouchableOpacity>
           </View>
@@ -183,6 +198,25 @@ export const VerificationModal: React.FC<VerificationModalProps> = ({
                     onChangeText={(val) => onUpdateField('pulse', parseInt(val.replace(/[^0-9]/g, ''), 10) || 0)}
                   />
                   <Text style={styles.inputSubtext}>BPM</Text>
+                </View>
+              </View>
+            ) : isPulse ? (
+              <View style={styles.glucoseSection}>
+                <View style={styles.glucoseValueCard}>
+                  <Text style={styles.inputLabel}>{t.verification.pulse}</Text>
+                  <View style={styles.glucoseValueRow}>
+                    <TextInput
+                      style={styles.glucoseInput}
+                      keyboardType="number-pad"
+                      placeholder="72"
+                      placeholderTextColor={colors.textMuted}
+                      value={verification.pulse ? verification.pulse.toString() : ''}
+                      onChangeText={(val) => onUpdateField('pulse', parseInt(val.replace(/[^0-9]/g, ''), 10) || 0)}
+                    />
+                    <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textSecondary }}>
+                      BPM
+                    </Text>
+                  </View>
                 </View>
               </View>
             ) : (
