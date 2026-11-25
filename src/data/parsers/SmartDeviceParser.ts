@@ -17,15 +17,11 @@ export class SmartDeviceParser {
   public detectDeviceType(rawText: string): DeviceType {
     const lower = rawText.toLowerCase();
 
-    // 1. Check for explicit Pulse Oximeter keywords
-    const pulseKeywords = ['spo2', 'sp02', '%spo2', '%sp', 'oximeter', 'oksimetre', 'pr bpm', 'prbpm', 'pulse rate'];
-    const pulseScore = pulseKeywords.reduce((count, kw) => (lower.includes(kw) ? count + 1 : count), 0);
-
-    // 2. Check for explicit Blood Pressure keywords
+    // 1. Check for explicit Blood Pressure keywords
     const bpKeywords = ['sys', 'dia', 'sistol', 'diyastol', 'buyuk', 'büyük', 'kucuk', 'küçük', 'mmhg', 'omron', 'cuff', 'tansiyon', 'pressure'];
     const bpScore = bpKeywords.reduce((count, kw) => (lower.includes(kw) ? count + 1 : count), 0);
 
-    // 3. Check for explicit Glucose keywords
+    // 2. Check for explicit Glucose keywords
     const glucoseKeywords = [
       'mg/dl', 'mgdl', 'mg/d', 'mg/di', 'mg/d1', 'mg/l', 'mmol', 'mmo1',
       'glucose', 'sugar', 'seker', 'şeker', 'glukoz', 'glikoz',
@@ -39,22 +35,11 @@ export class SmartDeviceParser {
     const effectiveGlucoseScore = glucoseScore + (hasDecimal ? 2 : 0);
 
     // Highest score wins
-    if (pulseScore > 0 && bpScore === 0) {
-      return 'PULSE';
-    }
-    if (effectiveGlucoseScore > bpScore && effectiveGlucoseScore > pulseScore) {
+    if (effectiveGlucoseScore > bpScore) {
       return 'BLOOD_GLUCOSE';
     }
     if (bpScore > 0) {
       return 'BLOOD_PRESSURE';
-    }
-    if (pulseScore > 0) {
-      return 'PULSE';
-    }
-
-    // Secondary pulse keywords if no BP keywords were found
-    if (/pr\s*bpm|heart rate|bpm|nabız|nabz/i.test(lower) && !/sys|dia|buyuk|kucuk/i.test(lower)) {
-      return 'PULSE';
     }
 
     // Ambiguity resolution: check if multiple 2-3 digit numbers exist outside timestamps
@@ -81,7 +66,7 @@ export class SmartDeviceParser {
     options?: SmartParseOptions
   ): {
     result: ParsedOcrResult | null;
-    needsFallback: boolean;
+    needsUserInput: boolean;
     detectedType: DeviceType;
   } {
     const detectedType = options?.forcedDeviceType ?? this.detectDeviceType(rawText);
@@ -89,40 +74,26 @@ export class SmartDeviceParser {
 
     let result: ParsedOcrResult | null = null;
 
-    if (detectedType === 'PULSE') {
-      result = bloodPressureParser.parsePulse(rawText, blocks);
-      // If standalone pulse parse failed and not forced, try BP
-      if (!result && !options?.forcedDeviceType) {
-        result = bloodPressureParser.parse(rawText, blocks);
-      }
-      if (!result && !options?.forcedDeviceType) {
-        result = bloodGlucoseParser.parse(rawText, blocks);
-      }
-    } else if (detectedType === 'BLOOD_PRESSURE') {
+    if (detectedType === 'BLOOD_PRESSURE') {
       result = bloodPressureParser.parse(rawText, blocks);
-      // If BP parsing failed but user hadn't forced BP, try glucose then pulse
+      // If BP parsing failed but the user hadn't forced BP, try glucose
       if (!result && !options?.forcedDeviceType) {
         result = bloodGlucoseParser.parse(rawText, blocks);
-      }
-      if (!result && !options?.forcedDeviceType) {
-        result = bloodPressureParser.parsePulse(rawText, blocks);
       }
     } else {
       result = bloodGlucoseParser.parse(rawText, blocks);
-      // If Glucose parsing failed and not forced, try BP then pulse
+      // If glucose parsing failed and not forced, try BP
       if (!result && !options?.forcedDeviceType) {
         result = bloodPressureParser.parse(rawText, blocks);
       }
-      if (!result && !options?.forcedDeviceType) {
-        result = bloodPressureParser.parsePulse(rawText, blocks);
-      }
     }
 
-    const needsFallback = !result || result.confidence < threshold;
+    // Low confidence or no result: the user must enter the values
+    const needsUserInput = !result || result.confidence < threshold;
 
     return {
       result,
-      needsFallback,
+      needsUserInput,
       detectedType: result?.deviceType ?? detectedType,
     };
   }

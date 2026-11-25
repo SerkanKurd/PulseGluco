@@ -1,6 +1,6 @@
-import { ParsedBloodPressureOcr, ParsedPulseOcr } from '../../domain/models/OcrResult';
+import { ParsedBloodPressureOcr } from '../../domain/models/OcrResult';
 import { RecognizedTextBlock, RecognizedTextLine } from '../../domain/models/OcrResult';
-import { classifyBloodPressure, classifyPulse } from '../../core/constants/medical-thresholds';
+import { classifyBloodPressure } from '../../core/constants/medical-thresholds';
 
 export interface BpParserOptions {
   minimumConfidence?: number;
@@ -290,91 +290,6 @@ export class BloodPressureParser {
     return null;
   }
 
-  /**
-   * Standalone Pulse / Pulse Oximeter parser
-   */
-  public parsePulse(rawText: string, blocks?: RecognizedTextBlock[]): ParsedPulseOcr | null {
-    let lines: string[] = [];
-    if (blocks && blocks.length > 0) {
-      lines = blocks.flatMap((b) => b.lines.map((l) => l.text));
-    } else {
-      lines = rawText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-    }
-
-    let pulse: number | undefined = undefined;
-    let spo2: number | undefined = undefined;
-    const matchedLines: string[] = [];
-
-    // Check for Pulse Oximeter patterns (%SpO2, PR bpm)
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      const upper = line.toUpperCase();
-
-      // Check for SpO2 (%SpO2, SpO2, % O2)
-      if (/SPO2|SP02|%SP|OXIMET/i.test(upper)) {
-        matchedLines.push(line);
-        const num = this.extractNumberFromLineOrNeighbour(lines, i);
-        if (num !== null && num >= 70 && num <= 100) {
-          spo2 = num;
-        }
-      }
-
-      // Check for PR / PR bpm / Pulse
-      if (
-        (/\b(PR|PULSE|BPM|PUL|HR|NABIZ|NABZ|ATIM)\b/i.test(upper) ||
-          /PR\s*BPM|PULSE|BPM|\/MIN|NABIZ|ATIM|[♥♡]/i.test(upper)) &&
-        !/SYS|DIA|BUYUK|KUCUK/i.test(upper)
-      ) {
-        matchedLines.push(line);
-        const num = this.extractNumberFromLineOrNeighbour(lines, i);
-        if (num !== null && num >= 35 && num <= 220) {
-          pulse = num;
-        }
-      }
-    }
-
-    // If still no pulse, try running BP parser and extracting pulse from BP monitor screen
-    if (pulse === undefined) {
-      const bpResult = this.parse(rawText, blocks);
-      if (bpResult && bpResult.pulse) {
-        pulse = bpResult.pulse;
-        matchedLines.push(...bpResult.rawMatchedLines);
-      }
-    }
-
-    // If still no pulse found, look for isolated 2-digit number with bpm / /min or prominent PR line
-    if (pulse === undefined) {
-      for (const line of lines) {
-        const sanitized = sanitizeSevenSegmentText(line);
-        const match = sanitized.match(/\b([4-9]\d|1\d{2})\s*(?:bpm|\/min|pr)?\b/i);
-        if (match && /bpm|\/min|pr|pulse|nabız/i.test(line)) {
-          const val = parseInt(match[1], 10);
-          if (val >= 40 && val <= 200) {
-            pulse = val;
-            matchedLines.push(line);
-            break;
-          }
-        }
-      }
-    }
-
-    if (pulse !== undefined) {
-      let confidence = 0.85;
-      if (spo2 !== undefined) confidence += 0.08;
-      if (/bpm|pulse|nabız|pr/i.test(rawText)) confidence += 0.05;
-
-      return {
-        deviceType: 'PULSE',
-        pulse,
-        spo2,
-        confidence: Math.min(confidence, 0.98),
-        status: classifyPulse(pulse),
-        rawMatchedLines: matchedLines,
-      };
-    }
-
-    return null;
-  }
 }
 
 export const bloodPressureParser = new BloodPressureParser();

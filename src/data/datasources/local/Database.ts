@@ -1,49 +1,21 @@
 import * as SQLite from 'expo-sqlite';
 import { Platform } from 'react-native';
 
-export class AppDatabase {
-  private static instance: AppDatabase;
-  private db: SQLite.SQLiteDatabase | null = null;
-  private initialized = false;
+/**
+ * Schema version stored in `PRAGMA user_version`.
+ * Bump it and add a step to `MIGRATIONS` whenever the schema or stored data must change.
+ */
+export const DATABASE_VERSION = 1;
 
-  public static getInstance(): AppDatabase {
-    if (!AppDatabase.instance) {
-      AppDatabase.instance = new AppDatabase();
-    }
-    return AppDatabase.instance;
-  }
+type Migration = (db: SQLite.SQLiteDatabase) => Promise<void>;
 
-  /**
-   * Initializes SQLite database, creates tables, and executes migrations
-   */
-  public async getDatabase(): Promise<SQLite.SQLiteDatabase | null> {
-    if (this.db && this.initialized) {
-      return this.db;
-    }
-
-    try {
-      this.db = await SQLite.openDatabaseAsync('pulsegluco.db');
-      await this.runMigrations(this.db);
-      this.initialized = true;
-      return this.db;
-    } catch (err) {
-      console.warn('SQLite initialization failed (falling back to memory storage):', err);
-      return null;
-    }
-  }
-
-  private async runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
-    try {
-      // WAL mode is supported on native Android/iOS
-      if (Platform.OS !== 'web') {
-        await db.execAsync('PRAGMA journal_mode = WAL;');
-        await db.execAsync('PRAGMA foreign_keys = ON;');
-      }
-    } catch (pragmaErr) {
-      console.warn('PRAGMA notice:', pragmaErr);
-    }
-
-    // Create tables and indexes
+/**
+ * MIGRATIONS[n] upgrades the database from version n to n + 1.
+ * Each step runs in its own transaction.
+ */
+const MIGRATIONS: Migration[] = [
+  // 0 -> 1: initial schema; drop data outside the product scope.
+  async (db) => {
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS health_records (
         id TEXT PRIMARY KEY,
@@ -68,6 +40,72 @@ export class AppDatabase {
       CREATE INDEX IF NOT EXISTS idx_health_records_timestamp ON health_records(timestamp DESC);
       CREATE INDEX IF NOT EXISTS idx_health_records_device_type ON health_records(device_type);
     `);
+
+    // Standalone pulse / oximeter readings are no longer supported.
+    await db.runAsync(`DELETE FROM health_records WHERE device_type NOT IN ('BLOOD_PRESSURE', 'BLOOD_GLUCOSE')`);
+    // Demo records that older builds wrote into the real logbook.
+    await db.runAsync(`DELETE FROM health_records WHERE id LIKE '%-demo-%'`);
+    // Cloud fallback was removed; such readings were confirmed by the user like any other OCR reading.
+    await db.runAsync(`UPDATE health_records SET source = 'OCR_AUTO' WHERE source = 'OCR_FALLBACK'`);
+  },
+];
+
+export async function migrateDatabase(db: SQLite.SQLiteDatabase): Promise<void> {
+  const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
+  let currentVersion = row?.user_version ?? 0;
+
+  while (currentVersion < DATABASE_VERSION) {
+    const step = MIGRATIONS[currentVersion];
+    const nextVersion = currentVersion + 1;
+    await db.withTransactionAsync(async () => {
+      await step(db);
+      await db.execAsync(`PRAGMA user_version = ${nextVersion}`);
+    });
+    currentVersion = nextVersion;
+  }
+}
+
+export class AppDatabase {
+  private static instance: AppDatabase;
+  private db: SQLite.SQLiteDatabase | null = null;
+  private opening: Promise<SQLite.SQLiteDatabase | null> | null = null;
+
+  public static getInstance(): AppDatabase {
+    if (!AppDatabase.instance) {
+      AppDatabase.instance = new AppDatabase();
+    }
+    return AppDatabase.instance;
+  }
+
+  /**
+   * Opens the database and runs pending migrations once. Concurrent callers share the same promise.
+   */
+  public async getDatabase(): Promise<SQLite.SQLiteDatabase | null> {
+    if (this.db) return this.db;
+    if (!this.opening) {
+      this.opening = this.open();
+    }
+    return this.opening;
+  }
+
+  private async open(): Promise<SQLite.SQLiteDatabase | null> {
+    try {
+      const db = await SQLite.openDatabaseAsync('pulsegluco.db');
+      if (Platform.OS !== 'web') {
+        try {
+          await db.execAsync('PRAGMA journal_mode = WAL;');
+        } catch (pragmaErr) {
+          console.warn('PRAGMA notice:', pragmaErr);
+        }
+      }
+      await migrateDatabase(db);
+      this.db = db;
+      return db;
+    } catch (err) {
+      console.warn('SQLite initialization failed (falling back to memory storage):', err);
+      this.opening = null;
+      return null;
+    }
   }
 }
 

@@ -117,8 +117,6 @@ export const SummaryCard: React.FC<SummaryCardProps> = ({
               <Text style={[styles.sourceText, { color: colors.textMuted }]}>
                 {latestRecord.source === 'OCR_AUTO'
                   ? `📷 ${t.verification.onDeviceOcr}`
-                  : latestRecord.source === 'OCR_FALLBACK'
-                  ? `✨ ${t.verification.visionAiFallback}`
                   : `✍️ ${t.verification.manualVerification}`}
               </Text>
             </View>
