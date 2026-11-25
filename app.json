@@ -46,7 +46,8 @@
         {
           "photosPermission": "PulseGluco requires photo library access to import images of your health measurement devices."
         }
-      ]
+      ],
+      "expo-status-bar"
     ]
   }
 }
