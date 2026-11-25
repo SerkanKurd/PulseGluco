@@ -7,60 +7,44 @@ import {
   HealthRecord,
   BloodPressureRecord,
   BloodGlucoseRecord,
-  PulseRecord,
   isBloodPressureRecord,
   isBloodGlucoseRecord,
-  isPulseRecord,
 } from '../../domain/models/HealthRecord';
 import { appDatabase } from '../datasources/local/Database';
 import { generateMockHealthRecords } from '../../core/utils/mock-data-generator';
-import { classifyBloodPressure, classifyBloodGlucose, classifyPulse } from '../../core/constants/medical-thresholds';
+import { classifyBloodPressure, classifyBloodGlucose } from '../../core/constants/medical-thresholds';
 
 export class HealthRecordRepositoryImpl implements IHealthRecordRepository {
   // In-memory cache for instant UI response and offline resilience
   private memoryRecords: Map<string, HealthRecord> = new Map();
-  private isLoaded = false;
-  private isInitializing = false;
+  private loading: Promise<void> | null = null;
 
-  constructor() {
-    // Seed initial realistic records in memory
-    const demo = generateMockHealthRecords(14);
-    demo.forEach((r) => this.memoryRecords.set(r.id, r));
+  /**
+   * Loads stored records once. The logbook starts empty: demo data is never
+   * written to the real database (see `seedDemoData`, development only).
+   */
+  private ensureInitialized(): Promise<void> {
+    if (!this.loading) {
+      this.loading = this.loadFromDatabase();
+    }
+    return this.loading;
   }
 
-  private async ensureInitialized(): Promise<void> {
-    if (this.isLoaded || this.isInitializing) return;
-
-    this.isInitializing = true;
+  private async loadFromDatabase(): Promise<void> {
     try {
       const db = await appDatabase.getDatabase();
-      if (!db) {
-        this.isLoaded = true;
-        return;
-      }
+      if (!db) return;
 
       const rows = await db.getAllAsync<any>('SELECT * FROM health_records ORDER BY timestamp DESC');
-      if (rows && rows.length > 0) {
-        this.memoryRecords.clear();
-        for (const row of rows) {
-          const record = this.mapRowToRecord(row);
+      for (const row of rows ?? []) {
+        const record = this.mapRowToRecord(row);
+        // Records saved while loading are newer than the stored copy
+        if (record && !this.memoryRecords.has(record.id)) {
           this.memoryRecords.set(record.id, record);
-        }
-        this.isLoaded = true;
-      } else {
-        // Mark as loaded before seeding to prevent any recursion
-        this.isLoaded = true;
-        const demo = Array.from(this.memoryRecords.values());
-        for (const r of demo) {
-          await this.insertRecordDirectly(db, r);
         }
       }
     } catch (e) {
       console.warn('Repository failed to query SQLite, keeping memory state:', e);
-      this.isLoaded = true;
-    } finally {
-      this.isInitializing = false;
-      this.isLoaded = true;
     }
   }
 
@@ -78,7 +62,7 @@ export class HealthRecordRepositoryImpl implements IHealthRecordRepository {
           record.deviceType,
           isBloodPressureRecord(record) ? record.systolic : null,
           isBloodPressureRecord(record) ? record.diastolic : null,
-          isBloodPressureRecord(record) ? record.pulse ?? null : isPulseRecord(record) ? record.pulse ?? null : null,
+          isBloodPressureRecord(record) ? record.pulse ?? null : null,
           isBloodGlucoseRecord(record) ? record.glucoseValue : null,
           isBloodGlucoseRecord(record) ? record.unit : null,
           isBloodGlucoseRecord(record) ? record.mealTag : null,
@@ -170,6 +154,10 @@ export class HealthRecordRepositoryImpl implements IHealthRecordRepository {
   }
 
   public async updateRecord(record: HealthRecord): Promise<HealthRecord> {
+    await this.ensureInitialized();
+    if (!this.memoryRecords.has(record.id)) {
+      throw new Error(`Record ${record.id} not found`);
+    }
     return this.saveRecord(record);
   }
 
@@ -247,7 +235,9 @@ export class HealthRecordRepositoryImpl implements IHealthRecordRepository {
     }
   }
 
+  /** Development only: replaces the logbook with generated demo records. */
   public async seedDemoData(): Promise<void> {
+    if (typeof __DEV__ === 'undefined' || !__DEV__) return;
     const demo = generateMockHealthRecords(14);
     this.memoryRecords.clear();
     const db = await appDatabase.getDatabase();
@@ -259,7 +249,7 @@ export class HealthRecordRepositoryImpl implements IHealthRecordRepository {
     }
   }
 
-  private mapRowToRecord(row: any): HealthRecord {
+  private mapRowToRecord(row: any): HealthRecord | null {
     if (row.device_type === 'BLOOD_PRESSURE') {
       const record: BloodPressureRecord = {
         id: row.id,
@@ -269,7 +259,7 @@ export class HealthRecordRepositoryImpl implements IHealthRecordRepository {
         diastolic: row.diastolic,
         pulse: row.pulse || undefined,
         status: classifyBloodPressure(row.systolic, row.diastolic),
-        source: row.source || 'OCR_AUTO',
+        source: row.source === 'MANUAL' ? 'MANUAL' : 'OCR_AUTO',
         ocrConfidence: row.ocr_confidence,
         rawOcrText: row.raw_ocr_text,
         imageUri: row.image_uri,
@@ -277,23 +267,7 @@ export class HealthRecordRepositoryImpl implements IHealthRecordRepository {
         isSynced: Boolean(row.is_synced),
       };
       return record;
-    } else if (row.device_type === 'PULSE') {
-      const pulseVal = row.pulse || 72;
-      const record: PulseRecord = {
-        id: row.id,
-        timestamp: row.timestamp,
-        deviceType: 'PULSE',
-        pulse: pulseVal,
-        status: classifyPulse(pulseVal),
-        source: row.source || 'OCR_AUTO',
-        ocrConfidence: row.ocr_confidence,
-        rawOcrText: row.raw_ocr_text,
-        imageUri: row.image_uri,
-        notes: row.notes,
-        isSynced: Boolean(row.is_synced),
-      };
-      return record;
-    } else {
+    } else if (row.device_type === 'BLOOD_GLUCOSE') {
       const unit = row.glucose_unit || 'mg/dL';
       const tag = row.meal_tag || 'FASTING';
       const record: BloodGlucoseRecord = {
@@ -304,7 +278,7 @@ export class HealthRecordRepositoryImpl implements IHealthRecordRepository {
         unit,
         mealTag: tag,
         status: classifyBloodGlucose(row.glucose_value, unit, tag),
-        source: row.source || 'OCR_AUTO',
+        source: row.source === 'MANUAL' ? 'MANUAL' : 'OCR_AUTO',
         ocrConfidence: row.ocr_confidence,
         rawOcrText: row.raw_ocr_text,
         imageUri: row.image_uri,
@@ -313,6 +287,8 @@ export class HealthRecordRepositoryImpl implements IHealthRecordRepository {
       };
       return record;
     }
+    // Unsupported device type (e.g. legacy pulse readings)
+    return null;
   }
 }
 

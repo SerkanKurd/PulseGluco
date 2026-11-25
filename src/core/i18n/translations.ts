@@ -23,6 +23,9 @@ export interface Translations {
     deleteConfirmTitle: string;
     deleteConfirmMsg: string;
     resetDemoData: string;
+    edit: string;
+    checkValuesTitle: string;
+    saveFailed: string;
   };
   navigation: {
     home: string;
@@ -37,7 +40,6 @@ export interface Translations {
     logbook: string;
     logBpManually: string;
     logGlucoseManually: string;
-    logPulseManually: string;
     noRecentReadings: string;
     noReadingsFilter: string;
     scanDevicePrompt: string;
@@ -47,29 +49,22 @@ export interface Translations {
     alignDevice: string;
     alignBp: string;
     alignGlucose: string;
-    alignPulse: string;
     antiGlareTip: string;
     gallery: string;
     modeAuto: string;
     modeBp: string;
     modeGlucose: string;
-    modePulse: string;
     analyzingTitle: string;
     analyzingSubtitle: string;
     permissionTitle: string;
     permissionBody: string;
     grantAccess: string;
     returnDashboard: string;
-    apiKeyTitle: string;
-    apiKeyDesc: string;
-    apiKeyPlaceholder: string;
-    saveKey: string;
   };
   verification: {
     title: string;
     bpSubtitle: string;
     glucoseSubtitle: string;
-    pulseSubtitle: string;
     whoClassification: string;
     sys: string;
     dia: string;
@@ -84,11 +79,18 @@ export interface Translations {
     screenPreview: string;
     confidenceMatch: string;
     manualVerification: string;
-    visionAiFallback: string;
     onDeviceOcr: string;
-    incompleteBp: string;
-    incompleteGlucose: string;
-    incompletePulse: string;
+    editTitle: string;
+    needsInputBanner: string;
+    enterValue: string;
+    systolicMissing: string;
+    systolicOutOfRange: string;
+    diastolicMissing: string;
+    diastolicOutOfRange: string;
+    systolicNotAboveDiastolic: string;
+    pulseOutOfRange: string;
+    glucoseMissing: string;
+    glucoseOutOfRange: string;
   };
   status: {
     optimal: string;
@@ -178,6 +180,9 @@ export const translations: Record<SupportedLocale, Translations> = {
       deleteConfirmTitle: 'Delete Reading',
       deleteConfirmMsg: 'Are you sure you want to remove this health record?',
       resetDemoData: 'Reset Demo Data',
+      edit: 'Edit',
+      checkValuesTitle: 'Please Check the Values',
+      saveFailed: 'Could not save the measurement. Please try again.',
     },
     navigation: {
       home: 'Home',
@@ -187,12 +192,11 @@ export const translations: Record<SupportedLocale, Translations> = {
     },
     dashboard: {
       scanHeroTitle: 'Scan Device Screen',
-      scanHeroSubtitle: 'Photograph blood pressure monitor, glucometer, or pulse oximeter',
+      scanHeroSubtitle: 'Photograph your blood pressure monitor or glucometer',
       latestReadings: 'LATEST READINGS',
       logbook: 'MEASUREMENT LOGBOOK',
       logBpManually: '+ Log BP Manually',
       logGlucoseManually: '+ Log Glucose Manually',
-      logPulseManually: '+ Log Pulse Manually',
       noRecentReadings: 'No recent readings',
       noReadingsFilter: 'No readings found for this filter.',
       scanDevicePrompt: 'Tap "Scan Device" below to capture your first reading.',
@@ -202,30 +206,23 @@ export const translations: Record<SupportedLocale, Translations> = {
       alignDevice: 'Align Device LCD Screen',
       alignBp: 'Align Blood Pressure Display',
       alignGlucose: 'Align Glucometer Screen',
-      alignPulse: 'Align Pulse Monitor or Oximeter',
       antiGlareTip: 'Hold steady • Avoid glare & reflections',
       gallery: '🖼️ Gallery',
       modeAuto: 'Auto',
       modeBp: 'BP',
       modeGlucose: 'Glucose',
-      modePulse: 'Pulse',
       analyzingTitle: 'Analyzing Device Screen',
       analyzingSubtitle: 'Detecting digits, contrast normalization & spatial parsing...',
       permissionTitle: 'Camera Permission Required',
       permissionBody:
-        'PulseGluco needs access to your camera to scan blood pressure monitors, glucometer LCD screens, and pulse oximeters for offline OCR extraction.',
+        'PulseGluco needs camera access to read your blood pressure monitor and glucometer screens. Images are processed on your phone and never uploaded.',
       grantAccess: 'Grant Camera Access',
       returnDashboard: 'Return to Dashboard',
-      apiKeyTitle: 'Vision AI (Gemini 1.5)',
-      apiKeyDesc: 'Optional: Enter your free Gemini API key to enable high-accuracy LCD screen detection.',
-      apiKeyPlaceholder: 'Enter Gemini API Key',
-      saveKey: 'Save Key',
     },
     verification: {
       title: 'Verify Measurement',
       bpSubtitle: 'Blood Pressure Monitor Reading',
       glucoseSubtitle: 'Blood Glucose Meter Reading',
-      pulseSubtitle: 'Pulse Monitor / Oximeter Reading',
       whoClassification: 'WHO / ADA CLASSIFICATION',
       sys: 'SYS (mmHg)',
       dia: 'DIA (mmHg)',
@@ -240,11 +237,18 @@ export const translations: Record<SupportedLocale, Translations> = {
       screenPreview: '📷 Screen Capture Preview',
       confidenceMatch: 'Match',
       manualVerification: 'Manual Verification',
-      visionAiFallback: 'Vision AI Fallback',
       onDeviceOcr: 'On-Device OCR',
-      incompleteBp: 'Please enter both Systolic and Diastolic values.',
-      incompleteGlucose: 'Please enter a valid Blood Glucose number.',
-      incompletePulse: 'Please enter a valid Pulse reading.',
+      editTitle: 'Edit Measurement',
+      needsInputBanner: "We couldn't read the screen reliably. Please type the values shown on your device.",
+      enterValue: 'Enter value',
+      systolicMissing: 'Please enter the systolic (upper) value.',
+      systolicOutOfRange: 'Systolic must be between {min} and {max} mmHg.',
+      diastolicMissing: 'Please enter the diastolic (lower) value.',
+      diastolicOutOfRange: 'Diastolic must be between {min} and {max} mmHg.',
+      systolicNotAboveDiastolic: 'Systolic must be higher than diastolic.',
+      pulseOutOfRange: 'Pulse must be between {min} and {max} bpm.',
+      glucoseMissing: 'Please enter the blood glucose value.',
+      glucoseOutOfRange: 'Blood glucose must be between {min} and {max} {unit}.',
     },
     status: {
       optimal: 'Normal / Optimal',
@@ -335,6 +339,9 @@ export const translations: Record<SupportedLocale, Translations> = {
       deleteConfirmTitle: 'Kaydı Sil',
       deleteConfirmMsg: 'Bu sağlık kaydını silmek istediğinizden emin misiniz?',
       resetDemoData: 'Demo Verileri Sıfırla',
+      edit: 'Düzenle',
+      checkValuesTitle: 'Lütfen Değerleri Kontrol Edin',
+      saveFailed: 'Ölçüm kaydedilemedi. Lütfen tekrar deneyin.',
     },
     navigation: {
       home: 'Ana Sayfa',
@@ -344,12 +351,11 @@ export const translations: Record<SupportedLocale, Translations> = {
     },
     dashboard: {
       scanHeroTitle: 'Cihaz Ekranını Tara',
-      scanHeroSubtitle: 'Tansiyon aletinizi, glukometrenizi veya oksimetrenizi fotoğraflayın',
+      scanHeroSubtitle: 'Tansiyon aletinizi veya şeker ölçüm cihazınızı fotoğraflayın',
       latestReadings: 'SON ÖLÇÜMLER',
       logbook: 'ÖLÇÜM GÜNLÜĞÜ',
       logBpManually: '+ Manuel Tansiyon',
       logGlucoseManually: '+ Manuel Şeker',
-      logPulseManually: '+ Manuel Nabız',
       noRecentReadings: 'Henüz ölçüm yok',
       noReadingsFilter: 'Bu filtreye ait kayıt bulunamadı.',
       scanDevicePrompt: 'İlk ölçümünüzü kaydetmek için aşağıdaki "Tara" butonuna basın.',
@@ -359,30 +365,23 @@ export const translations: Record<SupportedLocale, Translations> = {
       alignDevice: 'Cihaz LCD Ekranını Hizalayın',
       alignBp: 'Tansiyon Aleti Ekranını Hizalayın',
       alignGlucose: 'Glukometre Ekranını Hizalayın',
-      alignPulse: 'Nabız Ölçer veya Oksimetreyi Hizalayın',
       antiGlareTip: 'Sabit tutun • Parlama ve yansımadan kaçının',
       gallery: '🖼️ Galeri',
       modeAuto: 'Oto',
       modeBp: 'Tansiyon',
       modeGlucose: 'Şeker',
-      modePulse: 'Nabız',
       analyzingTitle: 'Cihaz Ekranı Analiz Ediliyor',
       analyzingSubtitle: 'Rakamlar, kontrast iyileştirme ve alan ayrıştırması yapılıyor...',
       permissionTitle: 'Kamera İzni Gerekli',
       permissionBody:
-        'PulseGluco, tansiyon aleti, glukometre ve oksimetre ekranlarındaki değerleri çevrimdışı okumak için kameranıza erişim gerektirir.',
+        'PulseGluco, tansiyon aleti ve şeker ölçüm cihazı ekranlarını okumak için kameranıza erişim gerektirir. Görüntüler telefonunuzda işlenir, asla yüklenmez.',
       grantAccess: 'Kamera İzni Ver',
       returnDashboard: 'Ana Sayfaya Dön',
-      apiKeyTitle: 'Görsel Yapay Zeka (Gemini 1.5)',
-      apiKeyDesc: 'İsteğe bağlı: Yüksek doğrulukta ekran tanıma için ücretsiz Gemini API anahtarınızı girin.',
-      apiKeyPlaceholder: 'Gemini API Anahtarını Girin',
-      saveKey: 'Anahtarı Kaydet',
     },
     verification: {
       title: 'Ölçümü Doğrula',
       bpSubtitle: 'Tansiyon Aleti Ekran Okuması',
       glucoseSubtitle: 'Kan Şekeri Cihazı Okuması',
-      pulseSubtitle: 'Nabız Ölçer / Oksimetre Okuması',
       whoClassification: 'DSÖ / ADA TIBBİ SINIFLANDIRMASI',
       sys: 'SİSTOLİK (Büyük)',
       dia: 'DİYASTOLİK (Küçük)',
@@ -397,11 +396,18 @@ export const translations: Record<SupportedLocale, Translations> = {
       screenPreview: '📷 Ekran Yakalama Önizlemesi',
       confidenceMatch: 'Eşleşme',
       manualVerification: 'Manuel Doğrulama',
-      visionAiFallback: 'Yapay Zeka Destekli',
       onDeviceOcr: 'Cihaz İçi OCR',
-      incompleteBp: 'Lütfen hem Büyük (SYS) hem Küçük (DIA) tansiyon değerlerini girin.',
-      incompleteGlucose: 'Lütfen geçerli bir kan şekeri değeri girin.',
-      incompletePulse: 'Lütfen geçerli bir nabız değeri girin.',
+      editTitle: 'Ölçümü Düzenle',
+      needsInputBanner: 'Ekran güvenilir şekilde okunamadı. Lütfen cihazınızda görünen değerleri girin.',
+      enterValue: 'Değer girin',
+      systolicMissing: 'Lütfen büyük tansiyon (sistolik) değerini girin.',
+      systolicOutOfRange: 'Büyük tansiyon {min} ile {max} mmHg arasında olmalıdır.',
+      diastolicMissing: 'Lütfen küçük tansiyon (diyastolik) değerini girin.',
+      diastolicOutOfRange: 'Küçük tansiyon {min} ile {max} mmHg arasında olmalıdır.',
+      systolicNotAboveDiastolic: 'Büyük tansiyon küçük tansiyondan yüksek olmalıdır.',
+      pulseOutOfRange: 'Nabız {min} ile {max} atım/dk arasında olmalıdır.',
+      glucoseMissing: 'Lütfen kan şekeri değerini girin.',
+      glucoseOutOfRange: 'Kan şekeri {min} ile {max} {unit} arasında olmalıdır.',
     },
     status: {
       optimal: 'Normal / İdeal',
@@ -470,3 +476,10 @@ export const translations: Record<SupportedLocale, Translations> = {
     },
   },
 };
+
+export const DEFAULT_LOCALE: SupportedLocale = 'en';
+
+/** Replaces `{name}` placeholders in a translated string. */
+export function formatMessage(template: string, values: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (match, key) => (key in values ? String(values[key]) : match));
+}

@@ -13,7 +13,6 @@ interface CameraOverlayProps {
   onPickImage: () => void;
   onClose: () => void;
   isProcessing: boolean;
-  onOpenSettings?: () => void;
 }
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -29,7 +28,6 @@ export const CameraOverlay: React.FC<CameraOverlayProps> = ({
   onPickImage,
   onClose,
   isProcessing,
-  onOpenSettings,
 }) => {
   const { t } = useTranslation();
 
@@ -67,22 +65,9 @@ export const CameraOverlay: React.FC<CameraOverlayProps> = ({
               {t.camera.modeGlucose}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.modeButton, deviceMode === 'PULSE' && styles.modeButtonActive]}
-            onPress={() => onSelectMode('PULSE')}
-          >
-            <Text style={[styles.modeText, deviceMode === 'PULSE' && styles.modeTextActive]}>
-              {t.camera.modePulse}
-            </Text>
-          </TouchableOpacity>
         </View>
 
         <View style={styles.topActionGroup}>
-          {onOpenSettings && (
-            <TouchableOpacity style={styles.iconButton} onPress={onOpenSettings}>
-              <Text style={styles.iconText}>⚙️</Text>
-            </TouchableOpacity>
-          )}
           <TouchableOpacity
             style={[styles.iconButton, torchOn && styles.iconButtonActive]}
             onPress={onToggleTorch}
@@ -110,8 +95,6 @@ export const CameraOverlay: React.FC<CameraOverlayProps> = ({
                 ? t.camera.alignBp
                 : deviceMode === 'BLOOD_GLUCOSE'
                 ? t.camera.alignGlucose
-                : deviceMode === 'PULSE'
-                ? t.camera.alignPulse
                 : t.camera.alignDevice}
             </Text>
             <Text style={styles.viewfinderSubtext}>{t.camera.antiGlareTip}</Text>

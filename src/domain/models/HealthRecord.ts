@@ -1,6 +1,9 @@
 import { StatusCategory } from '../../core/constants/medical-thresholds';
 
-export type DeviceType = 'BLOOD_PRESSURE' | 'BLOOD_GLUCOSE' | 'PULSE';
+export type DeviceType = 'BLOOD_PRESSURE' | 'BLOOD_GLUCOSE';
+
+/** OCR_AUTO: read on-device and confirmed by the user. MANUAL: typed or corrected by the user. */
+export type RecordSource = 'OCR_AUTO' | 'MANUAL';
 
 export type GlucoseUnit = 'mg/dL' | 'mmol/L';
 
@@ -15,14 +18,14 @@ export interface BaseRecord {
   notes?: string;
   isSynced?: boolean;
   ocrConfidence?: number;
-  source: 'OCR_AUTO' | 'OCR_FALLBACK' | 'MANUAL';
+  source: RecordSource;
 }
 
 export interface BloodPressureRecord extends BaseRecord {
   deviceType: 'BLOOD_PRESSURE';
   systolic: number; // mmHg
   diastolic: number; // mmHg
-  pulse?: number; // bpm
+  pulse?: number; // bpm, as shown on the BP monitor screen
   status: StatusCategory;
 }
 
@@ -34,14 +37,7 @@ export interface BloodGlucoseRecord extends BaseRecord {
   status: StatusCategory;
 }
 
-export interface PulseRecord extends BaseRecord {
-  deviceType: 'PULSE';
-  pulse: number; // bpm
-  spo2?: number; // % (if available from pulse oximeter)
-  status: StatusCategory;
-}
-
-export type HealthRecord = BloodPressureRecord | BloodGlucoseRecord | PulseRecord;
+export type HealthRecord = BloodPressureRecord | BloodGlucoseRecord;
 
 export function isBloodPressureRecord(record: HealthRecord): record is BloodPressureRecord {
   return record.deviceType === 'BLOOD_PRESSURE';
@@ -49,8 +45,4 @@ export function isBloodPressureRecord(record: HealthRecord): record is BloodPres
 
 export function isBloodGlucoseRecord(record: HealthRecord): record is BloodGlucoseRecord {
   return record.deviceType === 'BLOOD_GLUCOSE';
-}
-
-export function isPulseRecord(record: HealthRecord): record is PulseRecord {
-  return record.deviceType === 'PULSE';
 }
