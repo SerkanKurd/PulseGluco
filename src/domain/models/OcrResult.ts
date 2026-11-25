@@ -40,21 +40,16 @@ export interface ParsedBloodGlucoseOcr {
   rawMatchedLines: string[];
 }
 
-export interface ParsedPulseOcr {
-  deviceType: 'PULSE';
-  pulse: number;
-  spo2?: number;
-  confidence: number;
-  status: StatusCategory;
-  rawMatchedLines: string[];
-}
-
-export type ParsedOcrResult = ParsedBloodPressureOcr | ParsedBloodGlucoseOcr | ParsedPulseOcr;
+export type ParsedOcrResult = ParsedBloodPressureOcr | ParsedBloodGlucoseOcr;
 
 export interface OcrProcessingResult {
   success: boolean;
   result?: ParsedOcrResult;
-  usedFallback: boolean;
+  /**
+   * True when the values could not be read reliably. The UI must then ask the
+   * user to enter them instead of pre-filling a guess.
+   */
+  needsUserInput: boolean;
   confidenceScore: number;
   errorMessage?: string;
   rawExtractedText: string;

@@ -122,35 +122,7 @@ describe('BloodPressureParser', () => {
     });
   });
 
-  describe('Pulse Oximeter & Dedicated Pulse Extraction', () => {
-    it('parses fingertip pulse oximeter display with %SpO2 and PR bpm', () => {
-      const ocrText = `
-        PULSE OXIMETER
-        %SpO2
-        98
-        PR bpm
-        72
-      `;
-
-      const result = parser.parsePulse(ocrText);
-      expect(result).not.toBeNull();
-      expect(result?.deviceType).toBe('PULSE');
-      expect(result?.pulse).toBe(72);
-      expect(result?.spo2).toBe(98);
-      expect(result?.confidence).toBeGreaterThanOrEqual(0.85);
-    });
-
-    it('extracts pulse when using heart symbol and PR labels', () => {
-      const ocrText = `
-        HEART MONITOR
-        PR 68 bpm
-      `;
-
-      const result = parser.parsePulse(ocrText);
-      expect(result).not.toBeNull();
-      expect(result?.pulse).toBe(68);
-    });
-
+  describe('Label / Value Column Layouts', () => {
     it('parses decoupled label-value columns on blood pressure displays', () => {
       const ocrText = `
         SYS mmHg

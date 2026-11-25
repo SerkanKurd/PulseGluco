@@ -15,7 +15,7 @@ import { ColorTheme, RADIUS, SPACING, TYPOGRAPHY } from '../../core/constants/th
 import { useTheme } from '../../core/theme/useTheme';
 import { StatusBadge } from './StatusBadge';
 import { VerificationState } from '../state/useHealthStore';
-import { classifyBloodPressure, classifyBloodGlucose, classifyPulse } from '../../core/constants/medical-thresholds';
+import { classifyBloodPressure, classifyBloodGlucose } from '../../core/constants/medical-thresholds';
 import { GlucoseUnit, MealTag } from '../../domain/models/HealthRecord';
 import { useTranslation } from '../../core/i18n/useTranslation';
 
@@ -38,14 +38,28 @@ export const VerificationModal: React.FC<VerificationModalProps> = ({
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => getStyles(colors, isDark), [colors, isDark]);
   const isBp = verification.deviceType === 'BLOOD_PRESSURE';
-  const isPulse = verification.deviceType === 'PULSE';
+  const isEditing = Boolean(verification.editingRecordId);
 
-  // Compute live status preview based on current editable inputs
+  // Live status preview only once the required values are present
   const currentStatus = isBp
-    ? classifyBloodPressure(verification.systolic || 0, verification.diastolic || 0)
-    : isPulse
-    ? classifyPulse(verification.pulse || 72)
-    : classifyBloodGlucose(verification.glucoseValue || 0, verification.unit, verification.mealTag);
+    ? verification.systolic && verification.diastolic
+      ? classifyBloodPressure(verification.systolic, verification.diastolic)
+      : null
+    : verification.glucoseValue
+    ? classifyBloodGlucose(verification.glucoseValue, verification.unit, verification.mealTag)
+    : null;
+
+  // Empty required fields are highlighted when the screen could not be read
+  const missingStyle = (value: number | null) =>
+    verification.needsUserInput && !value ? styles.inputMissing : null;
+  const parseIntInput = (val: string): number | null => {
+    const n = parseInt(val.replace(/[^0-9]/g, ''), 10);
+    return Number.isFinite(n) ? n : null;
+  };
+  const parseDecimalInput = (val: string): number | null => {
+    const n = parseFloat(val.replace(',', '.').replace(/[^0-9.]/g, ''));
+    return Number.isFinite(n) ? n : null;
+  };
 
   return (
     <Modal
@@ -62,13 +76,9 @@ export const VerificationModal: React.FC<VerificationModalProps> = ({
           {/* Header */}
           <View style={styles.headerRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.title}>{t.verification.title}</Text>
+              <Text style={styles.title}>{isEditing ? t.verification.editTitle : t.verification.title}</Text>
               <Text style={styles.subtitle}>
-                {isBp
-                  ? t.verification.bpSubtitle
-                  : isPulse
-                  ? t.verification.pulseSubtitle
-                  : t.verification.glucoseSubtitle}
+                {isBp ? t.verification.bpSubtitle : t.verification.glucoseSubtitle}
               </Text>
             </View>
             <TouchableOpacity onPress={onDismiss} style={styles.closeButton}>
@@ -87,19 +97,11 @@ export const VerificationModal: React.FC<VerificationModalProps> = ({
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.deviceTypeBtn, !isBp && !isPulse && styles.deviceTypeBtnActive]}
+              style={[styles.deviceTypeBtn, !isBp && styles.deviceTypeBtnActive]}
               onPress={() => onUpdateField('deviceType', 'BLOOD_GLUCOSE')}
             >
-              <Text style={[styles.deviceTypeBtnText, !isBp && !isPulse && styles.deviceTypeBtnTextActive]}>
+              <Text style={[styles.deviceTypeBtnText, !isBp && styles.deviceTypeBtnTextActive]}>
                 🩸 {t.common.glucose}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.deviceTypeBtn, isPulse && styles.deviceTypeBtnActive]}
-              onPress={() => onUpdateField('deviceType', 'PULSE')}
-            >
-              <Text style={[styles.deviceTypeBtnText, isPulse && styles.deviceTypeBtnTextActive]}>
-                💓 {t.common.pulse}
               </Text>
             </TouchableOpacity>
           </View>
@@ -141,19 +143,26 @@ export const VerificationModal: React.FC<VerificationModalProps> = ({
                 />
                 <Text style={styles.confidenceText}>
                   {verification.confidence > 0
-                    ? `${Math.round(verification.confidence * 100)}% ${t.verification.confidenceMatch} (${
-                        verification.usedFallback ? t.verification.visionAiFallback : t.verification.onDeviceOcr
-                      })`
+                    ? `${Math.round(verification.confidence * 100)}% ${t.verification.confidenceMatch} (${t.verification.onDeviceOcr})`
                     : t.verification.manualVerification}
                 </Text>
               </View>
             </View>
 
+            {/* Ask the user for the values when the screen could not be read */}
+            {verification.needsUserInput && (
+              <View style={styles.needsInputBanner} accessibilityRole="alert">
+                <Text style={styles.needsInputText}>{t.verification.needsInputBanner}</Text>
+              </View>
+            )}
+
             {/* Live Medical Status Preview */}
-            <View style={styles.statusSection}>
-              <Text style={styles.sectionLabel}>{t.verification.whoClassification}</Text>
-              <StatusBadge status={currentStatus} size="medium" showDescription={true} />
-            </View>
+            {currentStatus && (
+              <View style={styles.statusSection}>
+                <Text style={styles.sectionLabel}>{t.verification.whoClassification}</Text>
+                <StatusBadge status={currentStatus} size="medium" showDescription={true} />
+              </View>
+            )}
 
             {/* Editable Fields Section */}
             {isBp ? (
@@ -162,12 +171,13 @@ export const VerificationModal: React.FC<VerificationModalProps> = ({
                 <View style={styles.inputCard}>
                   <Text style={styles.inputLabel}>{t.verification.sys}</Text>
                   <TextInput
-                    style={styles.numericInput}
+                    style={[styles.numericInput, missingStyle(verification.systolic)]}
                     keyboardType="number-pad"
-                    placeholder="120"
+                    placeholder={verification.needsUserInput ? t.verification.enterValue : '120'}
                     placeholderTextColor={colors.textMuted}
-                    value={verification.systolic ? verification.systolic.toString() : ''}
-                    onChangeText={(val) => onUpdateField('systolic', parseInt(val.replace(/[^0-9]/g, ''), 10) || 0)}
+                    value={verification.systolic != null ? verification.systolic.toString() : ''}
+                    onChangeText={(val) => onUpdateField('systolic', parseIntInput(val))}
+                    maxLength={3}
                   />
                   <Text style={styles.inputSubtext}>SYS</Text>
                 </View>
@@ -176,12 +186,13 @@ export const VerificationModal: React.FC<VerificationModalProps> = ({
                 <View style={styles.inputCard}>
                   <Text style={styles.inputLabel}>{t.verification.dia}</Text>
                   <TextInput
-                    style={styles.numericInput}
+                    style={[styles.numericInput, missingStyle(verification.diastolic)]}
                     keyboardType="number-pad"
-                    placeholder="80"
+                    placeholder={verification.needsUserInput ? t.verification.enterValue : '80'}
                     placeholderTextColor={colors.textMuted}
-                    value={verification.diastolic ? verification.diastolic.toString() : ''}
-                    onChangeText={(val) => onUpdateField('diastolic', parseInt(val.replace(/[^0-9]/g, ''), 10) || 0)}
+                    value={verification.diastolic != null ? verification.diastolic.toString() : ''}
+                    onChangeText={(val) => onUpdateField('diastolic', parseIntInput(val))}
+                    maxLength={3}
                   />
                   <Text style={styles.inputSubtext}>DIA</Text>
                 </View>
@@ -192,31 +203,13 @@ export const VerificationModal: React.FC<VerificationModalProps> = ({
                   <TextInput
                     style={styles.numericInput}
                     keyboardType="number-pad"
-                    placeholder="72"
+                    placeholder={verification.needsUserInput ? t.verification.enterValue : '72'}
                     placeholderTextColor={colors.textMuted}
-                    value={verification.pulse ? verification.pulse.toString() : ''}
-                    onChangeText={(val) => onUpdateField('pulse', parseInt(val.replace(/[^0-9]/g, ''), 10) || 0)}
+                    value={verification.pulse != null ? verification.pulse.toString() : ''}
+                    onChangeText={(val) => onUpdateField('pulse', parseIntInput(val))}
+                    maxLength={3}
                   />
                   <Text style={styles.inputSubtext}>BPM</Text>
-                </View>
-              </View>
-            ) : isPulse ? (
-              <View style={styles.glucoseSection}>
-                <View style={styles.glucoseValueCard}>
-                  <Text style={styles.inputLabel}>{t.verification.pulse}</Text>
-                  <View style={styles.glucoseValueRow}>
-                    <TextInput
-                      style={styles.glucoseInput}
-                      keyboardType="number-pad"
-                      placeholder="72"
-                      placeholderTextColor={colors.textMuted}
-                      value={verification.pulse ? verification.pulse.toString() : ''}
-                      onChangeText={(val) => onUpdateField('pulse', parseInt(val.replace(/[^0-9]/g, ''), 10) || 0)}
-                    />
-                    <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textSecondary }}>
-                      BPM
-                    </Text>
-                  </View>
                 </View>
               </View>
             ) : (
@@ -226,15 +219,14 @@ export const VerificationModal: React.FC<VerificationModalProps> = ({
                   <Text style={styles.inputLabel}>{t.verification.glucoseValue}</Text>
                   <View style={styles.glucoseValueRow}>
                     <TextInput
-                      style={styles.glucoseInput}
+                      style={[styles.glucoseInput, missingStyle(verification.glucoseValue)]}
                       keyboardType="decimal-pad"
-                      placeholder="100"
+                      placeholder={verification.needsUserInput ? t.verification.enterValue : '100'}
                       placeholderTextColor={colors.textMuted}
-                      value={verification.glucoseValue ? verification.glucoseValue.toString() : ''}
-                      onChangeText={(val) => {
-                        const cleaned = val.replace(/[^0-9.]/g, '');
-                        onUpdateField('glucoseValue', parseFloat(cleaned) || 0);
-                      }}
+                      defaultValue={verification.glucoseValue != null ? verification.glucoseValue.toString() : ''}
+                      key={`${verification.editingRecordId ?? 'new'}-${verification.capturedImageUri ?? ''}`}
+                      onChangeText={(val) => onUpdateField('glucoseValue', parseDecimalInput(val))}
+                      maxLength={5}
                     />
                     {/* Unit Selector */}
                     <View style={styles.unitToggleGroup}>
@@ -347,6 +339,24 @@ export const VerificationModal: React.FC<VerificationModalProps> = ({
 
 const getStyles = (colors: ColorTheme, isDark: boolean) =>
   StyleSheet.create({
+    needsInputBanner: {
+      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : '#FFFBEB',
+      borderColor: '#F59E0B',
+      borderWidth: 1,
+      borderRadius: RADIUS.md,
+      padding: SPACING.md,
+      marginBottom: SPACING.md,
+    },
+    needsInputText: {
+      color: isDark ? '#FCD34D' : '#92400E',
+      fontSize: 14,
+      fontWeight: '600',
+      lineHeight: 20,
+    },
+    inputMissing: {
+      borderColor: '#F59E0B',
+      borderWidth: 2,
+    },
     modalOverlay: {
       flex: 1,
       backgroundColor: isDark ? 'rgba(0, 0, 0, 0.75)' : 'rgba(15, 23, 42, 0.65)',

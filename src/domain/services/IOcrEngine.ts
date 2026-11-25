@@ -2,7 +2,6 @@ import { RecognizedTextBlock } from '../models/OcrResult';
 import { DeviceType } from '../models/HealthRecord';
 
 export interface OcrEngineOptions {
-  base64?: string;
   hintDeviceType?: DeviceType;
 }
 
